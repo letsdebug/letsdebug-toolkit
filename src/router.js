@@ -20,7 +20,7 @@ export default new Router({
       component: About
     },
     {
-      path: '/tools/clear-authz',
+      path: '/clear-authz',
       name: 'clear-authz',
       component: ClearAuthz
     }
