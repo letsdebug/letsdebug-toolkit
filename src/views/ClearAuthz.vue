@@ -11,12 +11,12 @@
       This tool can help by scanning your ACME client logs (e.g. <code>/var/log/letsencrypt/*</code>) for pending authorizations
       and then intentionally failing them, in order to reduce your pending authorization count.
     </p>
-    <p>This tool is compatible with both ACME v1 and ACME v2 clients (but only RS256 keys, as with Certbot).</p>
+    <p>This tool is compatible with both ACME v1 and ACME v2 clients (but only currently with RSA keys, as with Certbot).</p>
     <h3>Usage</h3>
     <p>You will need to be able to run commands on your server via SSH.</p>
     <div :class="{'task-complete': logLines !== null}">
-      <h4>1. Download your logs</h4>
-      <p>Select all of the log files available in your ACME client. For Certbot, select all of the files in
+      <h4>1. Gather your logs</h4>
+      <p>Find all of the authz URLs in your ACME client's logs. For Certbot, these are located in
         <code>{{ logsDir }}</code> .</p>
       <p>To do this, SSH into your server as root and upload your authz URLs (they are not sensitive &amp; will be deleted after 10 minutes):</p>
       <code class="ssh">grep -Ri "/acme/authz/" {{ logsDir }}/* | curl -m60 --data-binary @- https://letsdebug.net/_/{{ token }}
@@ -26,12 +26,11 @@
       <h4>2. Scan your logs</h4>
       <div class="upload-options">
         <div class="upload-option">
-          <p>Press continue once you've run the above <code>curl</code> command
-          and got the go-ahead.</p>
+          <p>Continue once you've run the above <code>curl</code> command and it indicates completion.</p>
           <button @click="downloadLogs" :disabled="loading">Continue</button>
         </div>
         <div class="upload-option">
-          <p>Or if you're paranoid, provide logs manually:</p>
+          <p>For the paranoid, provide a single logfile manually (processed inside your browser):</p>
           <input type="file" v-on:change="handleUpload">
         </div>
       </div>
@@ -47,9 +46,6 @@
       </p>
       <p>
         <em>Found {{ challenges.length }} pending authorizations.</em>
-      </p>
-      <p v-if="challenges.length === 0">
-        No pending authorizations were found. This means it's the end of the road. Sorry.
       </p>
     </div>
     <div v-if="challengesFound && challenges.length > 0" :class="{'task-complete': clearLog !== null }">
@@ -104,6 +100,7 @@ export default {
     return {
       logsDir: '/var/log/letsencrypt',
       logLines: null,
+      processed: [],
       processedCount: 0,
       authzCount: 0,
       checkCount: 0,
@@ -118,6 +115,7 @@ export default {
   },
   methods: {
     reset: function () {
+      this.procesed = []
       this.processedCount = 0
       this.authzCount = 0
       this.logLines = null
@@ -277,7 +275,7 @@ code {
   flex-direction: row;
   justify-content: space-between;
   .upload-option {
-    width: 40%;
+    width: 45%;
   }
 }
 textarea {

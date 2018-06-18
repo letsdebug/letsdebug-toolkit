@@ -11,6 +11,9 @@
       <a href="https://gethttpsforfree.com" target="_blank" rel="noopener noreferrer">gethttpsforfree</a>
       instead.
     </p>
+    <h2>Let's Debug</h2>
+    <p>Figure out why your certificate issuance might be failing.</p>
+    <a href="https://letsdebug.net/" target="_blank" rel="noopener noreferrer">Use Let's Debug</a>
     <h2>clear-authz</h2>
     <p>If you're facing the <em>too many pending authorizations </em> <a
       target="_blank" rel="noopener noreferrer" href="https://letsencrypt.org/docs/rate-limits/">rate limiting condition</a>, this can help
