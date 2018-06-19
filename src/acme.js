@@ -7,7 +7,7 @@ delete axios.defaults.headers.common['content-type']
 const clients = {}
 
 const keyAlg = function (pk) {
-  switch (pk['kty']) {
+  switch (pk.kty) {
     case 'RSA':
       return 'RS256'
   }
@@ -15,7 +15,7 @@ const keyAlg = function (pk) {
 }
 
 const pubKey = function (pk) {
-  switch (pk['kty']) {
+  switch (pk.kty) {
     case 'RSA':
       return { e: pk.e, kty: pk.kty, n: pk.n }
   }
@@ -77,15 +77,15 @@ class V1Client {
 
   async sign (url, payload) {
     const nonce = await this.nonce()
-    const algo = keyAlg(this.pub)
+    const alg = keyAlg(this.pub)
     let header = {
-      'alg': algo,
-      'nonce': nonce,
-      'url': url,
+      alg,
+      nonce,
+      url,
       'jwk': this.pub
     }
 
-    const sig = KJUR.jws.JWS.sign(algo, header, payload, this.pk).split('.')
+    const sig = KJUR.jws.JWS.sign(alg, header, payload, this.pk).split('.')
     return {
       protected: sig[0],
       payload: sig[1],
@@ -160,7 +160,7 @@ class V2Client {
     const body = await this.sign(url, this.accountID, payload)
     const result = await axios({
       method: 'POST',
-      url: `${url}`,
+      url,
       headers: {
         'content-type': 'application/jose+json'
       },
@@ -175,19 +175,19 @@ class V2Client {
 
   async sign (url, keyID, payload) {
     const nonce = await this.nonce()
-    const algo = keyAlg(this.pub)
+    const alg = keyAlg(this.pub)
     let header = {
-      'alg': algo,
-      'nonce': nonce,
-      'url': `${url}`
+      alg,
+      nonce,
+      url
     }
     if (keyID) {
-      header['kid'] = keyID
+      header.kid = keyID
     } else {
-      header['jwk'] = this.pub
+      header.jwk = this.pub
     }
 
-    const sig = KJUR.jws.JWS.sign(algo, header, payload, this.pk).split('.')
+    const sig = KJUR.jws.JWS.sign(alg, header, payload, this.pk).split('.')
     return {
       protected: sig[0],
       payload: sig[1],
