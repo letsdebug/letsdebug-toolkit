@@ -11,8 +11,6 @@
       </select>
       <input ref="search" type="search" :placeholder="searchPlaceholder" v-model="query">
       <select v-model="dateIntervalHours" v-if="searchMode != 'sql' && searchMode != 'serial' && searchMode != 'expiry'">
-        <option value=1>in the last 1 hour</option>
-        <option value=24 selected>in the last 1 day</option>
         <option value=168>in the last 7 days</option>
         <option value=744>in the last 31 days</option>
         <option value=2160>in the last 91 days</option>
@@ -34,22 +32,44 @@
         </tr>
         <tr>
           <td>
-            <span>Certificates per Registered Domain</span>
+            <a href="https://letsencrypt.org/docs/rate-limits/#certificates-per-registered-domain"
+            target="_blank" rel="noopener noreferrer">Certificates per Registered Domain</a>
           </td>
-          <td>The Registered Domain ({{ registeredDomain }}) has used
-            <span :class="{'bad': response.totalWithinWeek >= 20}">{{ response.totalWithinWeek }} of 20</span> weekly certificates.</td>
+          <td>
+            The Registered Domain ({{ registeredDomain }}) has used
+            <span :class="{'bad': response.totalWithinWeek >= 20}">{{ response.totalWithinWeek }} of 20</span> weekly certificates.
+              <p class="next-issue-date" v-if="response.totalWithinWeek >= 20">
+                The next non-renewal certificate for {{ registeredDomain }} will be issuable again on
+                <abbr :title="formatDateTitle(addWeek(response.firstCert))">
+                  {{ formatDate(addWeek(response.firstCert)) }}
+                </abbr>
+              </p>
+          </td>
         </tr>
         <tr>
           <td>
-            <span>Duplicate Certificates</span>
+            <a href="https://letsencrypt.org/docs/rate-limits/#duplicate-certificate"
+            target="_blank" rel="noopener noreferrer">Duplicate Certificates</a>
           </td>
           <td>
             <table class="duplicate-certs">
               <tr v-for="(v, k) in response.groupByNames" v-bind:key="k" v-if="v.length > 1">
                 <td width="50%"><div class="long-names">{{ k }}</div></td>
-                <td width="50%"><span :class="{'bad': v.length >= 5}">{{ v.length }} of 5</span> weekly certificates.</td>
+                <td width="50%">
+                  <span :class="{'bad': v.length >= 5}">{{ v.length }} of 5</span> weekly certificates.
+                  <div class="next-issue-date" v-if="v.length >= 5">The next time this certificate can be issued is
+                    <abbr :title="formatDateTitle(addWeek(response.firstCertByName[k].not_before))">
+                      {{ formatDate(addWeek(response.firstCertByName[k].not_before)) }}
+                    </abbr>
+                  </div>
+                </td>
               </tr>
             </table>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2" style="padding: 1rem 0 0 0;">
+            <a class="copy-summary" @click="copySummary">Copy rate limit summary to clipboard</a>.
           </td>
         </tr>
       </table>
@@ -164,12 +184,15 @@ import moment from 'moment'
 import psl from 'psl'
 
 const createDomainQuery = (domain, dateIntervalHours) => {
+  if (domain === null) {
+    return null
+  }
   return `select c.id as crtsh_id, c.CERTIFICATE as der \
   from certificate c, certificate_identity ci \
   where reverse(lower(ci.NAME_VALUE)) LIKE reverse('%${domain}') AND \
   x509_notBefore(c.CERTIFICATE) > NOW() - INTERVAL '${dateIntervalHours} hours' AND ci.CERTIFICATE_ID = c.ID AND \
-  ci.issuer_ca_id = 16418 AND ci.name_type = 'dNSName'
-  ORDER BY x509_notBefore(c.CERTIFICATE) DESC
+  ci.issuer_ca_id = 16418 AND ci.name_type = 'dNSName' \
+  ORDER BY x509_notBefore(c.CERTIFICATE) DESC \
   OFFSET 0 LIMIT 1000;`
 }
 
@@ -202,8 +225,8 @@ const createSerialQuery = (serial, dateIntervalHours) => {
   from certificate c, certificate_identity ci \
   where x509_serialNumber(c.CERTIFICATE) = decode('${serial.split(':').join('').trim()}', 'hex') AND \
   ci.CERTIFICATE_ID = c.ID AND \
-  ci.issuer_ca_id = 16418 AND ci.name_type = 'dNSName'
-  ORDER BY x509_notBefore(c.CERTIFICATE) DESC
+  ci.issuer_ca_id = 16418 AND ci.name_type = 'dNSName' \
+  ORDER BY x509_notBefore(c.CERTIFICATE) DESC \
   OFFSET 0 LIMIT 1000;`
 }
 
@@ -222,8 +245,12 @@ const doQuery = async (query, registeredDomain) => {
   // We also want to track duplicate (for the meaning of duplicate
   // where the set of dNSNames are identical) to work out rate limits
   const groupByNames = {}
-  const weekAgo = moment().subtract(7, 'day')
+  // Track the earliest certificate (to calculate Registered Domain rate limit drop-off)
+  let firstCert = null
+  // Track the earliest certificate per name (to calculate Duplicate Certificate rate limit drop-off)
+  const firstCertByName = {}
   // Track total certs for Registered Domain within 7 days
+  const weekAgo = moment().subtract(7, 'day')
   let totalWithinWeek = 0
   // Post-process the results
   response.data.results = response.data.results || []
@@ -290,11 +317,23 @@ const doQuery = async (query, registeredDomain) => {
     if (typeof groupByNames[namesKey] !== 'undefined') {
       final[i].num_duplicates = groupByNames[namesKey].length
     }
+
+    if (final[i].is_within_week &&
+      (typeof firstCertByName[namesKey] === 'undefined' || firstCertByName[namesKey].not_before > final[i].not_before)) {
+      firstCertByName[namesKey] = final[i]
+    }
+
+    if (final[i].is_within_week && (firstCert === null || firstCert.not_before > final[i].not_before)) {
+      firstCert = final[i]
+    }
   }
   response.data.results = final
   response.data.totalWithinWeek = totalWithinWeek
   response.data.groupByNames = groupByNames
   response.data.groupBySerial = groupBySerial
+  response.data.firstCert = firstCert
+  response.data.firstCertByName = firstCertByName
+
   return response.data
 }
 
@@ -330,6 +369,7 @@ export default {
         let queryFunc = null
         switch (this.searchMode) {
           case 'domain':
+            queryFunc = createDomainQuery
             const parsed = psl.parse(this.query.trim())
             if (!parsed.listed || parsed.domain === null) {
               window.alert(`${parsed.input} does not have a Public Suffix or is a Public Suffix itself.`)
@@ -338,7 +378,6 @@ export default {
               this.psl = parsed
               // We override the query to the Registered Domain
               query = this.psl.domain
-              queryFunc = createDomainQuery
             }
             break
           case 'expiry':
@@ -381,6 +420,36 @@ export default {
       if (this.query) {
         this.search()
       }
+    },
+    addWeek: function (d) {
+      return moment(d).add(7, 'day')
+    },
+    copySummary: function () {
+      let regSummary = `OK (${this.response.totalWithinWeek} / 20 this week.)`
+      if (this.response.totalWithinWeek >= 20) {
+        regSummary = `Limit exceeded (${this.response.totalWithinWeek}/20 this week). Next certificate issuable at \
+${this.formatDate(this.addWeek(this.response.firstCert.not_before))}.`
+      }
+      let summary = `\
+| Rate Limit                                     | Current Status | Domain           |
+|------------------------------------------------|----------------|------------------|
+| 20 Certificates per Registered Domain per week | ${regSummary}  | ${this.registeredDomain} |`
+      for (let names in this.response.groupByNames) {
+        if (this.response.groupByNames[names].length < 5) {
+          continue
+        }
+        summary += `\n\
+| 5 Duplicate Certificates per week | Limit exceeded. Next issuable at \
+${this.formatDate(this.addWeek(this.response.firstCertByName[names].not_before))} | ${names} |`
+      }
+      summary += `\n*Summary generated at ${window.location.href} .*`
+
+      const copyEl = document.createElement('textarea')
+      copyEl.value = summary
+      document.body.appendChild(copyEl)
+      copyEl.select()
+      document.execCommand('copy')
+      copyEl.remove()
     }
   },
   computed: {
@@ -485,7 +554,6 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
     font-size: 0.8rem;
     &.bad {
       color: red;
-      font-size: 1rem;
     }
   }
 }
@@ -522,5 +590,14 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
   &.selected {
     transform: rotate(180deg);
   }
+}
+.next-issue-date {
+  font-size: 0.8rem;
+}
+.copy-summary {
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+  color: mix(whitesmoke, #2c3c69, 25%);
 }
 </style>
