@@ -36,7 +36,7 @@
           <td>
             <span>Certificates per Registered Domain</span>
           </td>
-          <td>This Registered Domain (TODO:XXX) has used
+          <td>The Registered Domain ({{ registeredDomain }}) has used
             <span :class="{'bad': response.totalWithinWeek >= 20}">{{ response.totalWithinWeek }} of 20</span> weekly certificates.</td>
         </tr>
         <tr>
@@ -161,6 +161,7 @@
 import axios from 'axios'
 import { rstrtohex, X509, zulutodate, KJUR } from 'jsrsasign'
 import moment from 'moment'
+import psl from 'psl'
 
 const createDomainQuery = (domain, dateIntervalHours) => {
   return `select c.id as crtsh_id, c.CERTIFICATE as der \
@@ -206,7 +207,7 @@ const createSerialQuery = (serial, dateIntervalHours) => {
   OFFSET 0 LIMIT 1000;`
 }
 
-const doQuery = async (query) => {
+const doQuery = async (query, registeredDomain) => {
   if (query === null) {
     return
   }
@@ -251,6 +252,23 @@ const doQuery = async (query) => {
         pem: KJUR.asn1.ASN1Util.getPEMStringFromHex(hexBytes, 'CERTIFICATE')
       }
       entry.is_within_week = moment(entry.not_before).isAfter(weekAgo)
+
+      // The certificate needs to list at least one domain that is part of
+      // the registered domain we're looking at
+      if (registeredDomain) {
+        let found = false
+        for (let i = 0; i < entry.all_names.length; i++) {
+          const parsed = psl.parse(entry.all_names[i])
+          if (parsed.domain === registeredDomain) {
+            found = true
+            break
+          }
+        }
+        if (!found) {
+          continue
+        }
+      }
+
       groupBySerial[serial] = entry
 
       if (!haveDuplicateSerial && entry.is_within_week) {
@@ -289,7 +307,8 @@ export default {
       dateIntervalHours: 168,
       searchMode: 'domain',
       searchedMode: null,
-      selectedCert: null
+      selectedCert: null,
+      psl: null
     }
   },
   methods: {
@@ -298,14 +317,29 @@ export default {
       this.reload()
     },
     search: async function () {
+      if (this.loading) {
+        return
+      }
       this.response = null
       this.searchedMode = null
+      this.psl = null
       this.loading = true
+
+      let query = this.query
       try {
         let queryFunc = null
         switch (this.searchMode) {
           case 'domain':
-            queryFunc = createDomainQuery
+            const parsed = psl.parse(this.query.trim())
+            if (!parsed.listed || parsed.domain === null) {
+              window.alert(`${parsed.input} does not have a Public Suffix or is a Public Suffix itself.`)
+              query = null
+            } else {
+              this.psl = parsed
+              // We override the query to the Registered Domain
+              query = this.psl.domain
+              queryFunc = createDomainQuery
+            }
             break
           case 'expiry':
             queryFunc = createExpiryQuery
@@ -317,7 +351,7 @@ export default {
             queryFunc = () => this.query
             break
         }
-        this.response = await doQuery(queryFunc(this.query, this.dateIntervalHours))
+        this.response = await doQuery(queryFunc(query, this.dateIntervalHours), this.registeredDomain)
         this.searchedMode = this.searchMode
       } catch (e) {
         console.log('Search error', e)
@@ -372,6 +406,12 @@ export default {
           return `e.g. select c.id as crtsh_id, c.CERTIFICATE as der from certificate \
 c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
       }
+    },
+    registeredDomain: function () {
+      if (this.psl && this.psl.domain) {
+        return this.psl.domain
+      }
+      return null
     }
   },
   mounted: function () {
