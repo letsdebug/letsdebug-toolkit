@@ -37,13 +37,15 @@
           </td>
           <td>
             The Registered Domain ({{ registeredDomain }}) has used
-            <span :class="{'bad': response.totalWithinWeek >= 20}">{{ response.totalWithinWeek }} of 20</span> weekly certificates.
-              <p class="next-issue-date" v-if="response.totalWithinWeek >= 20">
-                The next non-renewal certificate for {{ registeredDomain }} will be issuable again on
-                <abbr :title="formatDateTitle(addWeek(response.firstCert))">
-                  {{ formatDate(addWeek(response.firstCert)) }}
-                </abbr>
-              </p>
+            <span :class="{'bad': response.totalWithinWeek >= CERTS_PER_REG_DOMAIN_PER_WEEK}">
+              {{ response.totalWithinWeek }} of {{ CERTS_PER_REG_DOMAIN_PER_WEEK }}
+            </span> weekly certificates.
+            <p class="next-issue-date" v-if="response.totalWithinWeek >= CERTS_PER_REG_DOMAIN_PER_WEEK">
+              The next non-renewal certificate for {{ registeredDomain }} will be issuable again on
+              <abbr :title="formatDateTitle(nextIssuableDate)">
+                {{ formatDate(nextIssuableDate) }}
+              </abbr>
+            </p>
           </td>
         </tr>
         <tr>
@@ -183,6 +185,8 @@ import { rstrtohex, X509, zulutodate, KJUR } from 'jsrsasign'
 import moment from 'moment'
 import psl from 'psl'
 
+const CERTS_PER_REG_DOMAIN_PER_WEEK = 20
+
 const createDomainQuery = (domain, dateIntervalHours) => {
   if (domain === null) {
     return null
@@ -190,7 +194,7 @@ const createDomainQuery = (domain, dateIntervalHours) => {
   return `select c.id as crtsh_id, c.CERTIFICATE as der \
   from certificate c, certificate_identity ci \
   where reverse(lower(ci.NAME_VALUE)) LIKE reverse('%${domain}') AND \
-  x509_notBefore(c.CERTIFICATE) > NOW() - INTERVAL '${dateIntervalHours} hours' AND ci.CERTIFICATE_ID = c.ID AND \
+  x509_notBefore(c.CERTIFICATE) >= NOW() - INTERVAL '${dateIntervalHours + 1} hours' AND ci.CERTIFICATE_ID = c.ID AND \
   ci.issuer_ca_id = 16418 AND ci.name_type = 'dNSName' \
   ORDER BY x509_notBefore(c.CERTIFICATE) DESC \
   OFFSET 0 LIMIT 1000;`
@@ -245,8 +249,6 @@ const doQuery = async (query, registeredDomain) => {
   // We also want to track duplicate (for the meaning of duplicate
   // where the set of dNSNames are identical) to work out rate limits
   const groupByNames = {}
-  // Track the earliest certificate (to calculate Registered Domain rate limit drop-off)
-  let firstCert = null
   // Track the earliest certificate per name (to calculate Duplicate Certificate rate limit drop-off)
   const firstCertByName = {}
   // Track total certs for Registered Domain within 7 days
@@ -322,16 +324,11 @@ const doQuery = async (query, registeredDomain) => {
       (typeof firstCertByName[namesKey] === 'undefined' || firstCertByName[namesKey].not_before > final[i].not_before)) {
       firstCertByName[namesKey] = final[i]
     }
-
-    if (final[i].is_within_week && (firstCert === null || firstCert.not_before > final[i].not_before)) {
-      firstCert = final[i]
-    }
   }
   response.data.results = final
   response.data.totalWithinWeek = totalWithinWeek
   response.data.groupByNames = groupByNames
   response.data.groupBySerial = groupBySerial
-  response.data.firstCert = firstCert
   response.data.firstCertByName = firstCertByName
 
   return response.data
@@ -425,15 +422,15 @@ export default {
       return moment(d).add(7, 'day')
     },
     copySummary: function () {
-      let regSummary = `OK (${this.response.totalWithinWeek} / 20 this week.)`
-      if (this.response.totalWithinWeek >= 20) {
-        regSummary = `Limit exceeded (${this.response.totalWithinWeek}/20 this week). Next certificate issuable at \
-${this.formatDate(this.addWeek(this.response.firstCert.not_before))}.`
+      let regSummary = `OK (${this.response.totalWithinWeek} / ${CERTS_PER_REG_DOMAIN_PER_WEEK} this week.)`
+      if (this.response.totalWithinWeek >= CERTS_PER_REG_DOMAIN_PER_WEEK) {
+        regSummary = `Limit exceeded (${this.response.totalWithinWeek}/${CERTS_PER_REG_DOMAIN_PER_WEEK} this week). Next certificate issuable at \
+${this.formatDate(this.nextIssuableDate)}.`
       }
       let summary = `\
 | Rate Limit                                     | Current Status | Domain           |
 |------------------------------------------------|----------------|------------------|
-| 20 Certificates per Registered Domain per week | ${regSummary}  | ${this.registeredDomain} |`
+| ${CERTS_PER_REG_DOMAIN_PER_WEEK} Certificates per Registered Domain per week | ${regSummary}  | ${this.registeredDomain} |`
       for (let names in this.response.groupByNames) {
         if (this.response.groupByNames[names].length < 5) {
           continue
@@ -453,6 +450,9 @@ ${this.formatDate(this.addWeek(this.response.firstCertByName[names].not_before))
     }
   },
   computed: {
+    CERTS_PER_REG_DOMAIN_PER_WEEK: function () {
+      return CERTS_PER_REG_DOMAIN_PER_WEEK
+    },
     sortedResults: function () {
       if (!this.response || !this.response.results) {
         return []
@@ -481,6 +481,12 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
         return this.psl.domain
       }
       return null
+    },
+    nextIssuableDate: function () {
+      if (this.response.totalWithinWeek < CERTS_PER_REG_DOMAIN_PER_WEEK) {
+        return new Date()
+      }
+      return this.addWeek(this.sortedResults[CERTS_PER_REG_DOMAIN_PER_WEEK].not_before)
     }
   },
   mounted: function () {
