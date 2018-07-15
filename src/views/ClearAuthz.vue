@@ -167,11 +167,12 @@ export default {
       this.loading = false
     },
     gatherChallenges: async function () {
+      const now = new Date().getTime()
       for (var i = 0; i < this.processed.length; i++) {
         const url = this.processed[i]
         try {
           const resp = await axios.get(url)
-          if (resp.data && resp.data.status === 'pending') {
+          if (resp.data && resp.data.status === 'pending' && new Date(resp.data.expires).getTime() > now) {
             const el = document.createElement('a')
             el.href = url
             this.accountKeys[el.hostname] = this.accountKeys[el.hostname] || ''
