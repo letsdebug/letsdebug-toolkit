@@ -185,7 +185,7 @@ import { rstrtohex, X509, zulutodate, KJUR } from 'jsrsasign'
 import moment from 'moment'
 import psl from 'psl'
 
-const CERTS_PER_REG_DOMAIN_PER_WEEK = 20
+const CERTS_PER_REG_DOMAIN_PER_WEEK = 50
 
 const createDomainQuery = (domain, dateIntervalHours) => {
   if (domain === null) {
