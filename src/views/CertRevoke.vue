@@ -66,7 +66,7 @@
       <h4>(2/2) Revocation</h4>
       <p>Before the certificate can be revoked, you will need to perform authorizations for each of the names on the certificate.</p>
       <p v-if="loading"><em>Loading ... ({{ loadingTask }})</em></p>
-      <div class="authz" v-for="authz in authzsToFulfill" v-bind:key="authz.identifier.value" v-if="!loading && !authz.fulfilled">
+      <div class="authz" v-for="authz in authzsToFulfill" v-bind:key="authz.url" v-if="!loading && !authz.fulfilled">
         <em>
           You are required to complete an authorization for <strong>{{ authz.identifier.value }}</strong> in order
           to be able to revoke this certificate.
@@ -75,7 +75,7 @@
           Please follow the instructions below to complete this authorization.
           You only need to complete one of HTTP or DNS validation - both are not required.
         </p>
-        <details open>
+        <details open v-if="authz.httpKeyAuthz">
           <summary>HTTP Challenge</summary>
           <p>
             For this challenge, create a file containing the following contents at
@@ -84,7 +84,7 @@
           <pre>{{ authz.httpKeyAuthz }}</pre>
           <button @click="completeChallenge(authz, 'http-01')" :disabled="loading" v-if="!authz.fulfilled">Complete HTTP Challenge</button>
         </details>
-        <details open>
+        <details open v-if="authz.dnsKeyAuthz">
           <summary>DNS Challenge</summary>
           <p>
             For this challenge, create a TXT record containing the following contents at
@@ -157,10 +157,17 @@ export default {
         }))
         authzs.forEach((o, i, a) => {
           const httpChal = this.challOfType(a[i].data, 'http-01')
-          a[i].data.httpResource = httpChal.token
-          a[i].data.httpKeyAuthz = this.acmeClient.keyAuthz(httpChal.token)
-          a[i].data.dnsKeyAuthz = this.acmeClient.dnsKeyAuthz(this.challOfType(a[i].data, 'dns-01').token)
-          a[i].data.fulfilled = false
+          // HTTP challenge may not be present if its a wildcard identifier
+          if (httpChal) {
+            a[i].data.httpResource = httpChal.token
+            a[i].data.httpKeyAuthz = this.acmeClient.keyAuthz(httpChal.token)
+          }
+          const dnsChal = this.challOfType(a[i].data, 'dns-01')
+          // DNS challenge should always be available, but better to be safe
+          if (dnsChal) {
+            a[i].data.dnsKeyAuthz = this.acmeClient.dnsKeyAuthz(dnsChal.token)
+            a[i].data.fulfilled = false
+          }
         })
         this.authzs = authzs
       } catch (e) {
