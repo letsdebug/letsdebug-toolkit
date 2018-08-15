@@ -1,5 +1,13 @@
 <template>
   <div class="cert-search">
+    <p class="warning">
+      Warning: crt.sh, the backing data source for this tool, is currently suffering from
+      backlog problems, rendering the reporting here largely inaccurate.
+      This problem is being addressed, but is yet unresolved. Keep an eye
+      <a href="https://groups.google.com/forum/#!forum/crtsh" target="_blank" rel="noopener noreferrer">
+      on the crt.sh mailing list for updates</a>.
+    </p>
+
     <h2>cert-search</h2>
 
     <form class="search-form" @submit="navigateSearch()" @submit.prevent=";">
@@ -605,5 +613,8 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
   text-decoration: underline;
   cursor: pointer;
   color: mix(whitesmoke, #2c3c69, 25%);
+}
+.warning {
+  font-size: 0.9rem;
 }
 </style>

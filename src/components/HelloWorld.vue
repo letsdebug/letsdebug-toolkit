@@ -19,6 +19,9 @@
       target="_blank" rel="noopener noreferrer" href="https://letsencrypt.org/docs/rate-limits/">rate limiting condition</a>, this can help
     you clear them out so you can continue to use your ACME account.</p>
     <router-link :to="{ name: 'clear-authz' }">Use clear-authz</router-link>
+    <h2>cert-revoke</h2>
+    <p>Revoke certificates directly from the browser.</p>
+    <router-link :to="{ name: 'cert-revoke' }">Use cert-revoke</router-link>
     <h2>cert-search</h2>
     <p>An alternate user interface to
       <a href="https://crt.sh" rel="noopener noreferrer" target="_blank">crt.sh</a> to emphasize functionalities

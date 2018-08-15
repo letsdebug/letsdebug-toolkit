@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { KJUR, KEYUTIL } from 'jsrsasign'
+import { KJUR, KEYUTIL, hextob64u } from 'jsrsasign'
 
 // Not permitted for CORS in Boulder v1 WFE
 delete axios.defaults.headers.common['content-type']
@@ -10,6 +10,8 @@ const keyAlg = function (pk) {
   switch (pk.kty) {
     case 'RSA':
       return 'RS256'
+    case 'EC':
+      return 'ES256'
   }
   return null
 }
@@ -18,6 +20,8 @@ const pubKey = function (pk) {
   switch (pk.kty) {
     case 'RSA':
       return { e: pk.e, kty: pk.kty, n: pk.n }
+    case 'EC':
+      return { crv: 'P-256', x: pk.x, y: pk.y, kty: pk.kty }
   }
   return null
 }
@@ -39,6 +43,41 @@ const getClient = (privateKey, hostname) => {
   }
   clients[hostname] = newClient
   return newClient
+}
+
+const newClient = async (hostname) => {
+  let priv = null
+  if (window && window.localStorage) {
+    try {
+      const stored = window.localStorage.getItem('letsdebug-account-key')
+      if (stored) {
+        priv = JSON.parse(stored)
+      }
+    } catch (e) {
+      console.log('LocalStorage error', e)
+    }
+  }
+  if (!priv) {
+    const kp = KEYUTIL.generateKeypair('EC', 'secp256r1').prvKeyObj
+    const pubCurves = kp.getPublicKeyXYHex()
+    priv = {
+      kty: kp.type,
+      crv: kp.getShortNISTPCurveName(),
+      x: hextob64u(pubCurves.x),
+      y: hextob64u(pubCurves.y),
+      d: hextob64u(kp.prvKeyHex)
+    }
+    if (window && window.localStorage) {
+      try {
+        window.localStorage.setItem('letsdebug-account-key', JSON.stringify(priv))
+      } catch (e) {
+        console.log('LocalStorage error', e)
+      }
+    }
+  }
+  const client = new V2Client(priv, hostname)
+  await client.fetchAccount(true)
+  return client
 }
 
 class V1Client {
@@ -112,7 +151,7 @@ class V1Client {
 
 class V2Client {
   constructor (privateKey, hostname) {
-    const parsedKey = JSON.parse(privateKey)
+    const parsedKey = typeof privateKey === 'string' ? JSON.parse(privateKey) : privateKey
     this.pub = pubKey(parsedKey)
     this.pk = KEYUTIL.getKey(parsedKey)
     this.hostname = hostname
@@ -121,14 +160,59 @@ class V2Client {
     this.accountID = null
   }
 
+  async newOrder (names) {
+    if (this.directory === null) {
+      await this.fetchDirectory()
+    }
+    return this.post(this.directory['newOrder'], {
+      identifiers: names.map(v => ({
+        type: 'dns', value: v
+      }))
+    })
+  }
+
+  async revokeCertificate (certDERAsHex) {
+    return this.post(this.directory['revokeCert'], {
+      certificate: hextob64u(certDERAsHex)
+    })
+  }
+
+  async deactivateAuthz (authzURL) {
+    return this.post(authzURL, {
+      status: 'deactivated'
+    })
+  }
+
   async respondChallenge (challURL) {
     return this.post(challURL, {})
   }
 
-  async fetchAccount () {
+  async pollChallenge (challURL) {
+    while (true) {
+      const chall = await this.get(challURL)
+      if (!chall || !chall.data || !chall.data.status) {
+        throw new Error('Unexpected response when polling challenge')
+      }
+      switch (chall.data.status) {
+        case 'invalid':
+          throw new Error(`Challenge is invalid (${chall.data.url})`)
+        case 'pending':
+        case 'processing':
+          break
+        case 'valid':
+          return chall
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2500))
+    }
+  }
+
+  async fetchAccount (registerNew = false) {
+    if (this.directory === null) {
+      await this.fetchDirectory()
+    }
     const body = await this.sign(this.directory['newAccount'], null, {
       termsOfServiceAgreed: true,
-      onlyReturnExisting: true
+      onlyReturnExisting: !registerNew
     })
     const result = await axios({
       method: 'POST',
@@ -202,6 +286,24 @@ class V2Client {
     }
     return this.nonces.pop()
   }
+
+  async get (url) {
+    return axios({
+      method: 'GET',
+      url
+    })
+  }
+
+  keyAuthz (token) {
+    return keyAuth(this.pub, token)
+  }
+
+  dnsKeyAuthz (token) {
+    return KJUR.crypto.Util.sha256(this.keyAuthz(token))
+  }
 }
 
-export default getClient
+export {
+  getClient,
+  newClient
+}

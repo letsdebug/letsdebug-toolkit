@@ -4,6 +4,7 @@ import Home from './views/Home.vue'
 import About from './views/About.vue'
 import ClearAuthz from './views/ClearAuthz.vue'
 import CertSearch from './views/CertSearch.vue'
+import CertRevoke from './views/CertRevoke.vue'
 
 Vue.use(Router)
 
@@ -29,6 +30,11 @@ export default new Router({
       path: '/cert-search',
       name: 'cert-search',
       component: CertSearch
+    },
+    {
+      path: '/cert-revoke',
+      name: 'cert-revoke',
+      component: CertRevoke
     }
   ]
 })

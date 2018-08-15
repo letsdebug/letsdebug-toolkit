@@ -28,3 +28,10 @@ a {
 h2, h3 {
   border-bottom: 1px solid #2c3c69;
 }
+.task-complete {
+  color: #999;
+  .ssh {
+    background: #999;
+    color: #666;
+  }
+}

@@ -92,7 +92,7 @@
 
 <script>
 import axios from 'axios'
-import getClient from '@/acme'
+import { getClient } from '@/acme'
 import jsrsasign from 'jsrsasign'
 
 export default {
@@ -263,13 +263,6 @@ code {
 }
 .ssh::before {
   content: "# ";
-}
-.task-complete {
-  color: #999;
-  .ssh {
-    background: #999;
-    color: #666;
-  }
 }
 .upload-options {
   display: flex;
