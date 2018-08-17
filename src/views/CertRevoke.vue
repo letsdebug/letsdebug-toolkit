@@ -21,12 +21,18 @@
       <p>Unfortunately something went wrong during the process.
         Usually this is not recoverable - you will need to start from the beginning.
       </p>
-      <em>{{ error }}</em>
+      <p><em>{{ error }}</em></p>
+      <div>
+        <button @click="reset()" :disabled="loading" class="reset-button">Reset</button>
+      </div>
     </div>
     <div v-else-if="revoked">
       <h4>Revocation Complete</h4>
       <p>Congratulations! The certificate revocation succeeded. You may verify this by checking
       the Let's Encrypt OCSP service in a while (it is heavily cached).</p>
+      <div>
+        <button @click="reset()" :disabled="loading" class="reset-button">Reset</button>
+      </div>
     </div>
     <div class="cert-selection" v-else-if="!certConfirmed">
       <h4>(1/2) Which certificate to revoke?</h4>
@@ -98,6 +104,7 @@
       <button :disabled="loading" v-if="authzsRemaining === false && authzsToFulfill" @click="revokeCertificate()">
         Revoke the certificate
       </button>
+      <button @click="reset()" :disabled="loading" class="reset-button">Reset</button>
     </div>
   </div>
 </template>
@@ -215,6 +222,17 @@ export default {
       this.loading = false
       this.loadingTask = ''
       authz.fulfilled = true
+    },
+    reset: function () {
+      this.certSource = null
+      this.certPem = null
+      this.cert = null
+      this.certConfirmed = null
+      this.loading = null
+      this.error = null
+      this.authzs = null
+      this.revoked = false
+      this.acmeClient = null
     }
   },
   computed: {

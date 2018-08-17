@@ -170,7 +170,7 @@
                 <td>
                   <textarea readonly v-model="result.pem"></textarea>
                   <p v-if="result.cert_type === 'Pre-Certificate'">Please keep in mind, this PEM is a pre-certificate
-                    and can't be used to serve traffic.
+                    and can't be used to serve traffic or perform revocations.
                   </p>
                 </td>
               </tr>
