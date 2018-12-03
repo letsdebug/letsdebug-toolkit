@@ -287,7 +287,11 @@ const doQuery = async (query, registeredDomain) => {
       if (registeredDomain) {
         let found = false
         for (let i = 0; i < entry.all_names.length; i++) {
-          const parsed = psl.parse(entry.all_names[i])
+          let name = entry.all_names[i]
+          if (name.indexOf('*.') === 0) {
+            name = name.substring(2)
+          }
+          const parsed = psl.parse(name)
           if (parsed.domain === registeredDomain) {
             found = true
             break
