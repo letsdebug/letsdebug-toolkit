@@ -490,7 +490,7 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
       if (this.response.totalWithinWeek < CERTS_PER_REG_DOMAIN_PER_WEEK) {
         return new Date()
       }
-      return this.addWeek(this.sortedResults[CERTS_PER_REG_DOMAIN_PER_WEEK].not_before)
+      return this.addWeek(this.sortedResults[CERTS_PER_REG_DOMAIN_PER_WEEK - 1].not_before)
     }
   },
   mounted: function () {
