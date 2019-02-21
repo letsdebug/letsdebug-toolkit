@@ -19,6 +19,9 @@
     </form>
 
     <p v-if="loading">Searching ...</p>
+    <div v-else-if="error" class="error">
+      {{ error }}
+    </div>
     <p v-else-if="haveResults">
       Found {{ sortedResults.length }} certificates issued.
     </p>
@@ -341,6 +344,7 @@ const doQuery = async (query, registeredDomain) => {
 export default {
   data: function () {
     return {
+      error: null,
       response: null,
       loading: false,
       query: null,
@@ -360,6 +364,7 @@ export default {
       if (this.loading) {
         return
       }
+      this.error = null
       this.response = null
       this.searchedMode = null
       this.psl = null
@@ -394,7 +399,7 @@ export default {
         this.response = await doQuery(queryFunc(query, this.dateIntervalHours), this.registeredDomain)
         this.searchedMode = this.searchMode
       } catch (e) {
-        console.log('Search error', e)
+        this.error = e && e.response && e.response.data ? e.response.data : e
       }
       this.loading = false
     },
@@ -497,6 +502,10 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
     this.$refs.search.focus()
   },
   created: function () {
+    // For relative date strings, show hours upto 3 days
+    moment.relativeTimeThreshold('m', 60)
+    moment.relativeTimeThreshold('h', 24 * 3)
+
     this.reload()
   },
   watch: {
@@ -609,5 +618,11 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
   text-decoration: underline;
   cursor: pointer;
   color: mix(whitesmoke, #2c3c69, 25%);
+}
+.error {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #ffb6c199;
+  border-radius: 5px;
 }
 </style>
