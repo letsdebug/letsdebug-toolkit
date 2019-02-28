@@ -27,7 +27,11 @@
     </p>
 
     <div v-if="haveResults && searchedMode === 'domain'">
-      <h4>Rate Limit Status</h4>
+      <div class="rate-limit-title">
+        <h4>Rate Limit Status</h4>
+        <a class="fake-link" style="align-self: center;" @click="useLocalTZ = !useLocalTZ">
+          Switch to <span v-if="useLocalTZ">UTC</span><span v-else>local</span> dates</a>
+      </div>
       <table class="results">
         <tr>
           <th width="20%">Rate Limit</th>
@@ -74,7 +78,7 @@
         </tr>
         <tr>
           <td colspan="2" style="padding: 1rem 0 0 0;">
-            <a class="copy-summary" @click="copySummary">Copy rate limit summary to clipboard</a>.
+            <a class="fake-link" @click="copySummary">Copy rate limit summary to clipboard</a>.
           </td>
         </tr>
       </table>
@@ -186,6 +190,7 @@
 import axios from 'axios'
 import { rstrtohex, X509, zulutodate, KJUR } from 'jsrsasign'
 import moment from 'moment'
+import 'moment-timezone'
 import psl from 'psl'
 
 const CERTS_PER_REG_DOMAIN_PER_WEEK = 50
@@ -352,7 +357,8 @@ export default {
       searchMode: 'domain',
       searchedMode: null,
       selectedCert: null,
-      psl: null
+      psl: null,
+      useLocalTZ: false
     }
   },
   methods: {
@@ -404,7 +410,8 @@ export default {
       this.loading = false
     },
     formatDate: function (d) {
-      return moment(d).toISOString()
+      d = moment(d).tz(this.useLocalTZ ? moment.tz.guess() : 'UTC')
+      return d.format('DD MMM YYYY HH:mm:ss zz')
     },
     formatDateTitle: function (d) {
       return moment(d).fromNow()
@@ -502,9 +509,10 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
     this.$refs.search.focus()
   },
   created: function () {
-    // For relative date strings, show hours upto 3 days
+    // For relative date strings, show hours upto 3 days, days upto 90 days
     moment.relativeTimeThreshold('m', 60)
     moment.relativeTimeThreshold('h', 24 * 3)
+    moment.relativeTimeThreshold('d', 90)
 
     this.reload()
   },
@@ -613,7 +621,7 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
 .next-issue-date {
   font-size: 0.8rem;
 }
-.copy-summary {
+.fake-link {
   font-size: 0.8rem;
   text-decoration: underline;
   cursor: pointer;
@@ -624,5 +632,10 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
   padding: 1rem;
   background: #ffb6c199;
   border-radius: 5px;
+}
+.rate-limit-title {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
 }
 </style>

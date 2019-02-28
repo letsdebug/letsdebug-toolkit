@@ -11,6 +11,7 @@
     "axios": "^0.18.0",
     "jsrsasign": "^8.0.12",
     "moment": "^2.22.2",
+    "moment-timezone": "^0.5.23",
     "psl": "^1.1.31",
     "vue": "^2.5.16",
     "vue-router": "^3.0.1"
