@@ -4,7 +4,8 @@ const webpack = require('webpack')
 module.exports = {
   configureWebpack: {
     plugins: [
-      new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/)
+      new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
+      new webpack.NormalModuleReplacementPlugin(/moment-timezone\/data\/packed\/latest\.json/, require.resolve('./timezone-defs.json'))
     ]
   },
   productionSourceMap: false,

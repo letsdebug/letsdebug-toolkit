@@ -626,6 +626,7 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
   text-decoration: underline;
   cursor: pointer;
   color: mix(whitesmoke, #2c3c69, 25%);
+  user-select: none;
 }
 .error {
   margin: 1rem 0;
