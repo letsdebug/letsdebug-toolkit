@@ -53,6 +53,13 @@
                 {{ formatDate(nextIssuableDate) }}
               </abbr>
             </p>
+            <p>
+              <small>Due to
+                <a href="https://community.letsencrypt.org/t/rate-limits-fixing-certs-per-name-rate-limit-order-of-operations-gotcha/88189"
+                target="_blank" rel="noopener noreferrer">changes in how Let's Encrypt applies the renewal exemption</a>, this
+                calculation is no longer accurate (overestimating how close a domain is to this rate limit) and is unlikely to be fixed.
+              </small>
+            </p>
           </td>
         </tr>
         <tr>
