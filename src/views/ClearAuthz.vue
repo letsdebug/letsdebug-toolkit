@@ -19,7 +19,7 @@
       <p>Find all of the authz URLs in your ACME client's logs. For Certbot, these are located in
         <code>{{ logsDir }}</code> .</p>
       <p>To do this, SSH into your server as root and upload your authz URLs (they are not sensitive &amp; will be deleted after 10 minutes):</p>
-      <code class="ssh">grep -Ri "/acme/authz/" {{ logsDir }}/* | curl -m60 --data-binary @- https://letsdebug.net/_/{{ token }}
+      <code class="ssh">grep -Ri "/acme/authz" {{ logsDir }}/* | curl -m60 --data-binary @- https://letsdebug.net/_/{{ token }}
 </code>
     </div>
     <div :class="{'task-complete': authzCount !== 0}">
@@ -71,7 +71,7 @@
       </p>
     </div>
     <script id="workerLogScanner" type="javascript/worker">
-      var regex = /https:\/\/([\w|-]+)\.api\.letsencrypt\.org\/acme\/authz\/([a-zA-Z0-9_-]+)/
+      var regex = /https:\/\/([\w|-]+)\.api\.letsencrypt\.org\/acme\/authz([a-zA-Z0-9_\-/]+)/
       self.onmessage = function (e) {
         var lines = e.data.split('\n');
         var out = {}
