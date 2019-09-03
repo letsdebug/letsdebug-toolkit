@@ -299,7 +299,7 @@ class V2Client {
   }
 
   dnsKeyAuthz (token) {
-    return KJUR.crypto.Util.sha256(this.keyAuthz(token))
+    return hextob64u(KJUR.crypto.Util.sha256(this.keyAuthz(token)))
   }
 }
 
