@@ -1,6 +1,11 @@
 <template>
   <div class="cert-search">
     <h2>cert-search</h2>
+    <p class="bad">
+      cert-search is currently inoperable due to
+      <a href="https://groups.google.com/forum/#!topic/crtsh/DM8SI-qsE8E">ongoing maintenance on the crt.sh:5432 database</a>
+      . Apologies for the inconvenience.
+    </p>
 
     <form class="search-form" @submit="navigateSearch()" @submit.prevent=";">
       <select v-model="searchMode" @change="query = null; $refs.search.focus()">
