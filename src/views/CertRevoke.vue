@@ -158,7 +158,7 @@ export default {
 
         this.loadingTask = 'Fetching authorizations'
         const authzs = await Promise.all(order.data.authorizations.map(async (v) => {
-          const authz = await this.acmeClient.get(v)
+          const authz = await this.acmeClient.postAsGet(v)
           authz.data.url = v
           return authz
         }))
