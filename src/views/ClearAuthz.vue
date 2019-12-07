@@ -11,16 +11,16 @@
       This tool can help by scanning your ACME client logs (e.g. <code>/var/log/letsencrypt/*</code>) for pending authorizations
       and then intentionally failing them, in order to reduce your pending authorization count.
     </p>
-    <p>This tool is compatible with both ACME v1 and ACME v2 clients (but only currently with RSA keys, as with Certbot).</p>
+    <p>This tool is compatible only with ACME v2 clients (but only currently with RSA keys, as with Certbot).</p>
     <h3>Usage</h3>
     <p>You will need to be able to run commands on your server via SSH.</p>
+    <!-- Prompt the user to upload their logs -->
     <div :class="{'task-complete': logLines !== null}">
       <h4>1. Gather your logs</h4>
       <p>Find all of the authz URLs in your ACME client's logs. For Certbot, these are located in
         <code>{{ logsDir }}</code> .</p>
       <p>To do this, SSH into your server as root and upload your authz URLs (they are not sensitive &amp; will be deleted after 10 minutes):</p>
-      <code class="ssh">grep -Ri "/acme/authz" {{ logsDir }}/* | curl -m60 --data-binary @- https://letsdebug.net/_/{{ token }}
-</code>
+      <code class="ssh">grep -Ri "/acme/authz" {{ logsDir }}/* | curl -m60 --data-binary @- https://letsdebug.net/_/{{ token }}</code>
     </div>
     <div :class="{'task-complete': authzCount !== 0}">
       <h4>2. Scan your logs</h4>
@@ -35,8 +35,24 @@
         </div>
       </div>
     </div>
+    <!-- We need the ACME account key in order to GET the authorization URLs -->
+    <div v-if="authzCount !== 0" :class="{'task-complete': accountsDone }">
+      <h4>3. Provide your ACME account key(s) in JWK format</h4>
+      <p>In order to check the authorizations (via signed POST-as-GET requests), this tool needs your ACME accounts' private keys.
+      </p>
+      <p>The account keys will not be sent over the network - only your browser will see them.</p>
+      <div v-for="(key, server) in accountKeys" v-bind:key="server" :class="{'hidden': accountsDone}">
+        <h5>Please provide the ACME account private key for {{ server }}</h5>
+        <code class="ssh">
+          find /etc/letsencrypt/accounts/{{ server }} -name private_key.json -exec cat {} \;
+        </code>
+        <textarea rows="5" v-model="accountKeys[server]"></textarea>
+      </div>
+      <button :disabled="loading" @click="scanChallenges">Continue</button>
+    </div>
+    <!-- We have the account keys, now check the authorizations -->
     <div v-if="authzCount !== 0" :class="{'task-complete': challengesFound === true && challenges.length > 0 }">
-      <h4>3. Wait for each authz to be checked ...</h4>
+      <h4>4. Wait for each authz to be checked ...</h4>
       <p>Please wait until we have found all of the pending authorizations.</p>
       <p>
         <em>Found {{ processedCount }} unique authorizations in {{ authzCount }} lines ...</em>
@@ -48,22 +64,7 @@
         <em>Found {{ challenges.length }} pending authorizations.</em>
       </p>
     </div>
-    <div v-if="challengesFound && challenges.length > 0" :class="{'task-complete': clearLog !== null }">
-      <h4>4. Prepare to clear your {{ challenges.length }} pending authorization(s)</h4>
-      <p>
-        In order to clear these authorizations, this tool needs your ACME account private keys, in order to sign requests
-        to update the authorizations.
-      </p>
-      <p>The ACME account key will not be sent over the network - only your browser will see it.</p>
-      <div v-for="(key, server) in accountKeys" v-bind:key="server">
-        <h5>Please provide the ACME account private key for {{ server }}</h5>
-        <code class="ssh">
-          find /etc/letsencrypt/accounts/{{ server }} -name private_key.json -exec cat {} \;
-        </code>
-        <textarea rows="5" v-model="accountKeys[server]"></textarea>
-      </div>
-      <button :disabled="loading" @click="clearAuthzs">Okay, Go!</button>
-    </div>
+    <!-- Wait for deactivations -->
     <div v-if="clearLog !== null">
       <h4>5. Final step: wait for the process to complete</h4>
       <p v-for="line in clearLog" v-bind:key="line">
@@ -110,7 +111,9 @@ export default {
       clearLog: null,
       worker: null,
       token: null,
-      loading: false
+      loading: false,
+      accountsDone: false,
+      clients: {}
     }
   },
   methods: {
@@ -124,6 +127,8 @@ export default {
       this.challengesFound = false
       this.accountKeys = {}
       this.clearLog = null
+      this.accountsDone = false
+      this.clients = {}
     },
     handleUpload: function (e) {
       if (e.target.files.length !== 1) {
@@ -149,7 +154,7 @@ export default {
         case 'processed':
           this.processed = msg.data
           this.processedCount = this.processed.length
-          this.gatherChallenges()
+          this.scanAccounts()
           break
       }
     },
@@ -166,16 +171,42 @@ export default {
       }
       this.loading = false
     },
-    gatherChallenges: async function () {
+    scanAccounts: function () {
+      for (let i = 0; i < this.processed.length; i++) {
+        const url = this.processed[i]
+        const el = document.createElement('a')
+        el.href = url
+        this.accountKeys[el.hostname] = this.accountKeys[el.hostname] || ''
+      }
+    },
+    scanChallenges: async function () {
+      for (const server in this.accountKeys) {
+        const key = this.accountKeys[server]
+        try {
+          JSON.parse(key)
+        } catch (e) {
+          console.log(server, key, e)
+          window.alert(`The key for ${server} is not valid, press check that the full JSON value is present: ${e}`)
+          for (const k in this.accountKeys) {
+            this.accountKeys[k] = null
+          }
+          return
+        }
+      }
+      this.accountsDone = true
+
       const now = new Date().getTime()
       for (var i = 0; i < this.processed.length; i++) {
         const url = this.processed[i]
         try {
-          const resp = await axios.get(url)
+          const el = document.createElement('a')
+          el.href = url
+
+          this.clients[el.hostname] = this.clients[el.hostname] ||
+                                      getClient(this.accountKeys[el.hostname], el.hostname)
+
+          const resp = await this.clients[el.hostname].postAsGet(url)
           if (resp.data && resp.data.status === 'pending' && new Date(resp.data.expires).getTime() > now) {
-            const el = document.createElement('a')
-            el.href = url
-            this.accountKeys[el.hostname] = this.accountKeys[el.hostname] || ''
             this.challenges.push(resp.data.challenges[0].url || resp.data.challenges[0].uri)
           }
         } catch (e) {
@@ -185,18 +216,9 @@ export default {
       }
       this.challengesFound = true
       this.scrollDown()
+      this.clearAuthzs()
     },
     clearAuthzs: async function () {
-      for (const server in this.accountKeys) {
-        const key = this.accountKeys[server]
-        try {
-          JSON.parse(key)
-        } catch (e) {
-          console.log(server, key, e)
-          window.alert(`The key for ${server} is not valid, press check that the full JSON value is present: ${e}`)
-          return
-        }
-      }
       this.loading = true
       this.clearLog = []
       this.scrollDown()
@@ -208,8 +230,7 @@ export default {
 
         this.clearLog.push(`${i + 1}/${this.challenges.length}: Trying to clear ${url} ...`)
         try {
-          const client = getClient(this.accountKeys[el.hostname], el.hostname)
-          await client.respondChallenge(url)
+          await this.clients[el.hostname].respondChallenge(url)
           this.clearLog.push(`${i + 1}/${this.challenges.length}: Cleared ${url} successfully.`)
         } catch (e) {
           this.clearLog.push(`${i + 1}/${this.challenges.length}: Couldn't clear ${url} (error).`)
@@ -275,5 +296,8 @@ code {
 textarea {
   width: 100%;
   margin: 1rem 0;
+}
+.hidden {
+  display: none;
 }
 </style>

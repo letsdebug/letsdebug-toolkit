@@ -35,12 +35,7 @@ const getClient = (privateKey, hostname) => {
   if (typeof clients[hostname] !== 'undefined') {
     return clients[hostname]
   }
-  let newClient = null
-  if (hostname.indexOf('-v02') !== -1) {
-    newClient = new V2Client(privateKey, hostname)
-  } else {
-    newClient = new V1Client(privateKey, hostname)
-  }
+  let newClient = new V2Client(privateKey, hostname)
   clients[hostname] = newClient
   return newClient
 }
@@ -78,75 +73,6 @@ const newClient = async (hostname) => {
   const client = new V2Client(priv, hostname)
   await client.fetchAccount(true)
   return client
-}
-
-class V1Client {
-  constructor (privateKey, hostname) {
-    const parsedKey = JSON.parse(privateKey)
-    this.pub = pubKey(parsedKey)
-    this.pk = KEYUTIL.getKey(parsedKey)
-    this.hostname = hostname
-    this.nonces = []
-    this.directory = null
-  }
-
-  async respondChallenge (challURL) {
-    const chall = await axios.get(challURL)
-    const keyAuthz = keyAuth(this.pub, chall.data.token)
-    return this.post(challURL, {
-      'type': 'http-01',
-      'keyAuthorization': keyAuthz,
-      'resource': 'challenge'
-    })
-  }
-
-  async post (url, payload) {
-    const body = await this.sign(url, payload)
-    const result = await axios({
-      method: 'POST',
-      url: url,
-      data: JSON.stringify(body) /* to prevent content-type being sent */
-    })
-    const nonce = result.headers['replay-nonce']
-    if (nonce) {
-      this.nonces.push(nonce)
-    }
-    return result
-  }
-
-  async sign (url, payload) {
-    const nonce = await this.nonce()
-    const alg = keyAlg(this.pub)
-    let header = {
-      alg,
-      nonce,
-      url,
-      'jwk': this.pub
-    }
-
-    const sig = KJUR.jws.JWS.sign(alg, header, payload, this.pk).split('.')
-    return {
-      protected: sig[0],
-      payload: sig[1],
-      signature: sig[2]
-    }
-  }
-
-  async nonce () {
-    if (this.nonces.length === 0) {
-      await this.fetchDirectory()
-    }
-    return this.nonces.pop()
-  }
-
-  async fetchDirectory () {
-    const result = await axios.get(`https://${this.hostname}/directory`)
-    this.directory = result.data
-    const nonce = result.headers['replay-nonce']
-    if (nonce) {
-      this.nonces.push(nonce)
-    }
-  }
 }
 
 class V2Client {
@@ -189,7 +115,7 @@ class V2Client {
 
   async pollChallenge (challURL) {
     while (true) {
-      const chall = await this.get(challURL)
+      const chall = await this.postAsGet(challURL)
       if (!chall || !chall.data || !chall.data.status) {
         throw new Error('Unexpected response when polling challenge')
       }
@@ -287,11 +213,8 @@ class V2Client {
     return this.nonces.pop()
   }
 
-  async get (url) {
-    return axios({
-      method: 'GET',
-      url
-    })
+  async postAsGet (url) {
+    return this.post(url, '')
   }
 
   keyAuthz (token) {
