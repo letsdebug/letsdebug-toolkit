@@ -1,21 +1,14 @@
 <template>
   <div class="cert-search">
     <h2>cert-search</h2>
-    <p class="bad">
-      cert-search is currently inoperable due to
-      <a href="https://groups.google.com/forum/#!topic/crtsh/DM8SI-qsE8E">ongoing maintenance on the crt.sh:5432 database</a>
-      . Apologies for the inconvenience.
-    </p>
 
     <form class="search-form" @submit="navigateSearch()" @submit.prevent=";">
       <select v-model="searchMode" @change="query = null; $refs.search.focus()">
         <option value="domain">Search by domain</option>
-        <option value="expiry">Search by expiry/notAfter</option>
-        <option value="serial">Search by exact serial</option>
         <option value="sql">Search by raw SQL</option>
       </select>
       <input ref="search" type="search" :placeholder="searchPlaceholder" v-model="query">
-      <select v-model="dateIntervalHours" v-if="searchMode != 'sql' && searchMode != 'serial' && searchMode != 'expiry'">
+      <select v-model="dateIntervalHours" v-if="searchMode != 'sql'">
         <option value=168>in the last 7 days</option>
         <option value=744>in the last 31 days</option>
         <option value=2160>in the last 91 days</option>
@@ -211,47 +204,31 @@ const createDomainQuery = (domain, dateIntervalHours) => {
   if (domain === null) {
     return null
   }
-  return `select c.id as crtsh_id, c.CERTIFICATE as der \
-  from certificate c, certificate_identity ci \
-  where reverse(lower(ci.NAME_VALUE)) LIKE reverse('%${domain}') AND \
-  x509_notBefore(c.CERTIFICATE) >= NOW() - INTERVAL '${dateIntervalHours + 1} hours' AND ci.CERTIFICATE_ID = c.ID AND \
-  ci.issuer_ca_id = 16418 AND ci.name_type = 'dNSName' \
-  ORDER BY x509_notBefore(c.CERTIFICATE) DESC \
-  OFFSET 0 LIMIT 1000;`
-}
-
-const createExpiryQuery = (dateString, dateIntervalHours) => {
-  try {
-    dateString = dateString.trim()
-    let d = null
-    // First try the format used  by crt.sh and openssl x509
-    if (dateString.indexOf('GMT') === dateString.length - 3) {
-      d = moment.utc(dateString, 'MMM D HH:mm:ss YYYY')
-    } else { /* Otherwise hope the user passed iso8601 */
-      d = moment(dateString)
-    }
-    if (!d || !d.isValid()) {
-      throw new Error(`${dateString} isn't a Date string we understand, sorry!`)
-    }
-    return `select c.id as crtsh_id, c.CERTIFICATE as der \
-    from certificate c \
-    where x509_notAfter(c.CERTIFICATE) = '${d.utc().format(`YYYY-MM-DD HH:mm:ss`)}' AND \
-    x509_issuerName(c.CERTIFICATE) LIKE 'C=US, O=Let''s Encrypt%';`
-  } catch (e) {
-    console.log(`Can't parse date`, e)
-    window.alert(e)
-    return null
-  }
-}
-
-const createSerialQuery = (serial, dateIntervalHours) => {
-  return `select c.id as crtsh_id, c.CERTIFICATE as der \
-  from certificate c, certificate_identity ci \
-  where x509_serialNumber(c.CERTIFICATE) = decode('${serial.split(':').join('').trim()}', 'hex') AND \
-  ci.CERTIFICATE_ID = c.ID AND \
-  ci.issuer_ca_id = 16418 AND ci.name_type = 'dNSName' \
-  ORDER BY x509_notBefore(c.CERTIFICATE) DESC \
-  OFFSET 0 LIMIT 1000;`
+  return `WITH ci AS ( \
+    SELECT min(sub.CERTIFICATE_ID) ID, \
+           min(sub.ISSUER_CA_ID) ISSUER_CA_ID, \
+           sub.CERTIFICATE DER \
+        FROM (SELECT * \
+                  FROM certificate_and_identities cai \
+                  WHERE plainto_tsquery('${domain}') @@ identities(cai.CERTIFICATE) \
+                      AND cai.NAME_VALUE ILIKE ('%' || '${domain}' || '%') \
+                      AND x509_notBefore(cai.CERTIFICATE) >= NOW() - INTERVAL '${dateIntervalHours + 1} hours' \
+                      AND cai.issuer_ca_id = 16418 \
+                  LIMIT 10000 \
+             ) sub \
+        GROUP BY sub.CERTIFICATE \
+) \
+SELECT ci.ID crtsh_id, \
+        ci.DER der \
+    FROM ci \
+            LEFT JOIN LATERAL ( \
+                SELECT min(ctle.ENTRY_TIMESTAMP) ENTRY_TIMESTAMP \
+                    FROM ct_log_entry ctle \
+                    WHERE ctle.CERTIFICATE_ID = ci.ID \
+            ) le ON TRUE, \
+         ca \
+    WHERE ci.ISSUER_CA_ID = ca.ID \
+    ORDER BY le.ENTRY_TIMESTAMP DESC;`
 }
 
 const doQuery = async (query, registeredDomain) => {
@@ -404,12 +381,6 @@ export default {
               query = this.psl.domain
             }
             break
-          case 'expiry':
-            queryFunc = createExpiryQuery
-            break
-          case 'serial':
-            queryFunc = createSerialQuery
-            break
           case 'sql':
             queryFunc = () => this.query
             break
@@ -495,10 +466,6 @@ ${this.formatDate(this.addWeek(this.response.firstCertByName[names].not_before))
       switch (this.searchMode) {
         case 'domain':
           return 'ASCII-encoded domain name'
-        case 'expiry':
-          return 'crt.sh or ISO8601 format date'
-        case 'serial':
-          return 'Full certificate serial, hex-encoded'
         case 'sql':
           return `e.g. select c.id as crtsh_id, c.CERTIFICATE as der from certificate \
 c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
