@@ -212,8 +212,6 @@ const createDomainQuery = (domain, dateIntervalHours) => {
                   FROM certificate_and_identities cai \
                   WHERE plainto_tsquery('${domain}') @@ identities(cai.CERTIFICATE) \
                       AND cai.NAME_VALUE ILIKE ('%' || '${domain}' || '%') \
-                      AND x509_notBefore(cai.CERTIFICATE) >= NOW() - INTERVAL '${dateIntervalHours + 1} hours' \
-                      AND cai.issuer_ca_id = 16418 \
                   LIMIT 10000 \
              ) sub \
         GROUP BY sub.CERTIFICATE \
@@ -228,6 +226,8 @@ SELECT ci.ID crtsh_id, \
             ) le ON TRUE, \
          ca \
     WHERE ci.ISSUER_CA_ID = ca.ID \
+    AND x509_notBefore(ci.DER) >= NOW() - INTERVAL '${dateIntervalHours + 1} hours' \
+    AND ci.ISSUER_CA_ID = 16418 \
     ORDER BY le.ENTRY_TIMESTAMP DESC;`
 }
 
