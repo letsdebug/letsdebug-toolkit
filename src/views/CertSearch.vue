@@ -227,7 +227,7 @@ SELECT ci.ID crtsh_id, \
          ca \
     WHERE ci.ISSUER_CA_ID = ca.ID \
     AND x509_notBefore(ci.DER) >= NOW() - INTERVAL '${dateIntervalHours + 1} hours' \
-    AND ci.ISSUER_CA_ID = 16418 \
+    AND ci.ISSUER_CA_ID IN (16418, 183267, 183283) \
     ORDER BY le.ENTRY_TIMESTAMP DESC;`
 }
 
