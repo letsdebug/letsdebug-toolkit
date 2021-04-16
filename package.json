@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "axios": "^0.18.0",
-    "jsrsasign": "^8.0.12",
+    "jsrsasign": "^10.2.0",
     "moment": "^2.22.2",
     "moment-timezone": "^0.5.23",
     "psl": "^1.7.0",
