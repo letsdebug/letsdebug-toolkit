@@ -67,7 +67,8 @@
           </td>
           <td>
             <table class="duplicate-certs">
-              <tr v-for="(v, k) in response.groupByNames" v-bind:key="k" v-if="v.length > 1">
+              <template v-for="(v, k) in response.groupByNames" v-bind:key="k">
+              <tr v-if="v.length > 1">
                 <td width="50%"><div class="long-names">{{ k }}</div></td>
                 <td width="50%">
                   <span :class="{'bad': v.length >= 5}">{{ v.length }} of 5</span> weekly certificates.
@@ -78,6 +79,7 @@
                   </div>
                 </td>
               </tr>
+              </template>
             </table>
           </td>
         </tr>
@@ -96,8 +98,8 @@
         <th>Issued</th>
         <th colspan="2">Domain List</th>
       </tr>
-      <template v-for="result in sortedResults" :id="result.serial" :class="{'within-week': result.is_within_week}">
-        <tr class="cert-row" v-bind:key="result.crtsh_id + '-entry'" :id="result.serial" :class="{'within-week': result.is_within_week}">
+      <template v-for="result in sortedResults" :key="result.crtsh_id + '-entry'">
+        <tr class="cert-row" :id="result.serial" :class="{'within-week': result.is_within_week}">
           <td width="20%">
             <a class="serial" target="_blank" rel="noopener noreferrer nofollow" :href="'https://crt.sh/?id=' + result.crtsh_id">{{ result.serial.slice(-12) }}</a>
             <span class="cert-type">{{ result.cert_type }}</span>

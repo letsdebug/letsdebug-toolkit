@@ -71,23 +71,6 @@
         {{ line }}
       </p>
     </div>
-    <script id="workerLogScanner" type="javascript/worker">
-      var regex = /https:\/\/([\w|-]+)\.api\.letsencrypt\.org\/acme\/authz([a-zA-Z0-9_\-/]+)/
-      self.onmessage = function (e) {
-        var lines = e.data.split('\n');
-        var out = {}
-        self.postMessage({ kind: 'count', data: lines.length });
-        var line = null, result = null
-        for (var i = 0; i < lines.length; i++) {
-          line = lines[i]
-          result = regex.exec(line)
-          if (result !== null && result.length === 3) {
-            out[result[1] + result[2]] = result[0]
-          }
-        }
-        self.postMessage({ kind: 'processed', data: Object.values(out)})
-      }
-    </script>
   </div>
 </template>
 
@@ -252,13 +235,10 @@ export default {
     this.token = jsrsasign.KJUR.crypto.Util.getRandomHexOfNbits(32)
   },
   mounted: function () {
-    const blob = new Blob([document.getElementById('workerLogScanner').textContent], {
-      type: 'text/javascript'
-    })
-    this.worker = new Worker(window.URL.createObjectURL(blob))
+    this.worker = new Worker(new URL('@/assets/workerLogScanner.js', import.meta.url))
     this.worker.onmessage = this.handleScan
   },
-  beforeDestroy: function () {
+  beforeUnmount: function () {
     if (this.worker !== null) {
       this.worker.terminate()
       this.worker = null

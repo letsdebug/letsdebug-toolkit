@@ -1,16 +1,21 @@
+<script setup>
+import { RouterLink, RouterView } from 'vue-router'
+</script>
+
 <template>
   <div id="app">
     <div id="nav">
-      <router-link to="/" exact>Home</router-link> |
-      <router-link to="/about">About</router-link> |
-      <router-link :to="{ name: 'clear-authz'}">clear-authz</router-link> |
-      <router-link :to="{ name: 'cert-revoke'}">cert-revoke</router-link> |
-      <router-link :to="{ name: 'cert-search'}">cert-search</router-link>
+      <RouterLink to="/">Home</RouterLink> |
+      <RouterLink to="/about">About</RouterLink> |
+      <RouterLink to="/clear-authz">clear-authz</RouterLink> |
+      <RouterLink to="/cert-revoke">cert-revoke</RouterLink> |
+      <RouterLink to="/cert-search">cert-search</RouterLink>
     </div>
     <h1>Let's Debug Toolkit</h1>
-    <router-view/>
+    <RouterView />
   </div>
 </template>
 
 <style lang="scss" scoped>
+@import '@/assets/app.scss';
 </style>

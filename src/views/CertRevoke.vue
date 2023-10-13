@@ -72,7 +72,8 @@
       <h4>(2/2) Revocation</h4>
       <p>Before the certificate can be revoked, you will need to perform authorizations for each of the names on the certificate.</p>
       <p v-if="loading"><em>Loading ... ({{ loadingTask }})</em></p>
-      <div class="authz" v-for="authz in authzsToFulfill" v-bind:key="authz.url" v-if="!loading && !authz.fulfilled">
+      <template v-for="authz in authzsToFulfill" v-bind:key="authz.url">
+      <div class="authz" v-if="!loading && !authz.fulfilled">
         <em>
           You are required to complete an authorization for <strong>{{ authz.identifier.value }}</strong> in order
           to be able to revoke this certificate.
@@ -100,6 +101,7 @@
           <button @click="completeChallenge(authz, 'dns-01')" :disabled="loading" v-if="!authz.fulfilled">Complete DNS Challenge</button>
         </details>
       </div>
+      </template>
 
       <button :disabled="loading" v-if="authzsRemaining === false && authzsToFulfill" @click="revokeCertificate()">
         Revoke the certificate
