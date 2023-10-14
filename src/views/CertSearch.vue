@@ -371,7 +371,7 @@ export default {
       try {
         let queryFunc = null
         switch (this.searchMode) {
-          case 'domain':
+          case 'domain': {
             queryFunc = createDomainQuery
             const parsed = psl.parse(this.query.trim())
             if (!parsed.listed || parsed.domain === null) {
@@ -383,6 +383,7 @@ export default {
               query = this.psl.domain
             }
             break
+          }
           case 'sql':
             queryFunc = () => this.query
             break
@@ -471,6 +472,8 @@ ${this.formatDate(this.addWeek(this.response.firstCertByName[names].not_before))
         case 'sql':
           return `e.g. select c.id as crtsh_id, c.CERTIFICATE as der from certificate \
 c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
+        default:
+          throw new Error("Invalid search mode")
       }
     },
     registeredDomain: function () {

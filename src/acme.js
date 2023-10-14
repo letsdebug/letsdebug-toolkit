@@ -114,7 +114,7 @@ class V2Client {
   }
 
   async pollChallenge (challURL) {
-    while (true) {
+    for (let poll = 0; poll < 100; poll++) {
       const chall = await this.postAsGet(challURL)
       if (!chall || !chall.data || !chall.data.status) {
         throw new Error('Unexpected response when polling challenge')
@@ -130,6 +130,7 @@ class V2Client {
       }
       await new Promise((resolve) => setTimeout(resolve, 2500))
     }
+    throw new Error('Challenge never reached acceptable state')
   }
 
   async fetchAccount (registerNew = false) {
