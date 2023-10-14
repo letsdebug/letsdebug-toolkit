@@ -68,7 +68,7 @@
           <td>
             <table class="duplicate-certs">
               <template v-for="(v, k) in response.groupByNames" v-bind:key="k">
-              <tr v-if="v.length > 1">
+              <tr v-if="v.length >= 1">
                 <td width="50%"><div class="long-names">{{ k }}</div></td>
                 <td width="50%">
                   <span :class="{'bad': v.length >= 5}">{{ v.length }} of 5</span> weekly certificates.
