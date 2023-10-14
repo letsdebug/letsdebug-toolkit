@@ -3,13 +3,7 @@
     <h2>cert-search</h2>
 
     <form class="search-form" @submit="navigateSearch()" @submit.prevent="">
-      <select
-        v-model="searchMode"
-        @change="
-          query = null
-          $refs.search.focus()
-        "
-      >
+      <select v-model="searchMode" @change="(query = null), $refs.search.focus()">
         <option value="domain">Search by domain</option>
         <option value="sql">Search by raw SQL</option>
       </select>
@@ -588,102 +582,126 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
 .results {
   width: 100%;
   margin-bottom: 2rem;
+
   th {
     background: #2c3c69;
     color: white;
   }
+
   th,
   td {
     padding: 0.5rem 1rem;
   }
+
   tr:nth-child(odd):not(.cert-detail) {
     background: whitesmoke;
+
     &.within-week {
       background: mix(whitesmoke, green, 95%);
     }
   }
+
   tr {
     &.within-week {
       background: mix(whitesmoke, lightgreen, 95%);
     }
+
     &.cert-detail {
       background: mix(whitesmoke, #2c3c69, 95%);
+
       table {
         width: 100%;
         word-wrap: break-word;
         word-break: break-all;
       }
+
       textarea {
         width: 100%;
         min-height: 200px;
       }
     }
   }
+
   .name {
     display: block;
     font-size: 0.9rem;
     padding: 0 0.25rem;
     margin: 0.25rem;
   }
+
   .cert-type {
     display: block;
     text-transform: uppercase;
     font-size: 0.8rem;
   }
+
   .serial {
     font-family: monospace;
     text-transform: uppercase;
     font-size: 0.9rem;
+
     &::before {
       content: '...';
     }
   }
+
   .expiry,
   .rate-limit-note {
     font-size: 0.8rem;
+
     &.bad {
       color: red;
     }
   }
 }
+
 .search-form {
   display: flex;
   flex-direction: row;
   width: 100%;
+
   input[type='search'] {
     flex-grow: 1;
   }
+
   input,
   select {
     padding: 0.25rem;
   }
 }
+
 .bad {
   color: red;
   font-size: 1rem;
   font-weight: bold;
 }
+
 .duplicate-certs {
   tr:nth-child(odd) {
     background: white;
   }
+
   .long-names {
     font-size: 0.75rem;
   }
 }
+
 .detail-toggle {
   user-select: none;
   cursor: pointer;
   font-size: 1.2rem;
   font-weight: bold;
   transition: transform 0.1s linear;
+
   &.selected {
     transform: rotate(180deg);
   }
 }
+
 .next-issue-date {
   font-size: 0.8rem;
 }
+
 .fake-link {
   font-size: 0.8rem;
   text-decoration: underline;
@@ -691,12 +709,14 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
   color: mix(whitesmoke, #2c3c69, 25%);
   user-select: none;
 }
+
 .error {
   margin: 1rem 0;
   padding: 1rem;
   background: #ffb6c199;
   border-radius: 5px;
 }
+
 .rate-limit-title {
   display: flex;
   flex-direction: row;
