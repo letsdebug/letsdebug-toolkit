@@ -1,6 +1,15 @@
 <template>
   <div class="clear-authz">
     <h2>clear-authz</h2>
+    <div class="highlight">
+      <h3>Deprecated</h3>
+      <p>
+        This tool is outdated and has several issues. In particular, the "upload log" feature is
+        likely to go away soon. If you have a use case for this tool, please
+        <a href="https://community.letsencrypt.org/u/nummer378">contact me</a>.
+      </p>
+    </div>
+    <br />
     <p>This tool can be helpful if you are faced with the following error message:</p>
     <blockquote>
       urn:acme:error:rateLimited :: There were too many requests of a given type :: Error creating
@@ -20,7 +29,12 @@
       Certbot).
     </p>
     <h3>Usage</h3>
-    <p>You will need to be able to run commands on your server via SSH.</p>
+    <p>
+      You will need to be able to run commands on your server via SSH. Alternatively, you can also
+      upload a logfile via your browser below. The log file is only scanned for authorization URLs,
+      the exact formatting doesn't matter.
+    </p>
+    <p>If you choose to upload via your browser, you don't need to run the curl command below.</p>
     <!-- Prompt the user to upload their logs -->
     <div :class="{ 'task-complete': logLines !== null }">
       <h4>1. Gather your logs</h4>
@@ -32,6 +46,7 @@
         To do this, SSH into your server as root and upload your authz URLs (they are not sensitive
         &amp; will be deleted after 10 minutes):
       </p>
+      <p class="highlight">This feature is going away soon.</p>
       <code class="ssh"
         >grep -Ri "/acme/authz" {{ logsDir }}/* | curl -m60 --data-binary @-
         https://letsdebug.net/_/{{ token }}</code
@@ -48,9 +63,7 @@
           <button @click="downloadLogs" :disabled="loading">Continue</button>
         </div>
         <div class="upload-option">
-          <p>
-            For the paranoid, provide a single logfile manually (processed inside your browser):
-          </p>
+          <p>Alternatively, provide a single logfile manually (processed inside your browser):</p>
           <input type="file" v-on:change="handleUpload" />
         </div>
       </div>
@@ -286,9 +299,11 @@ export default {
 blockquote {
   font-family: 'Courier New', Courier, monospace;
 }
+
 code {
   font-size: 1rem;
 }
+
 .ssh {
   font-size: 1rem;
   background: #2c3e50;
@@ -297,22 +312,31 @@ code {
   display: block;
   padding: 0.5rem;
 }
+
 .ssh::before {
   content: '# ';
 }
+
 .upload-options {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+
   .upload-option {
     width: 45%;
   }
 }
+
 textarea {
   width: 100%;
   margin: 1rem 0;
 }
+
 .hidden {
   display: none;
+}
+
+.highlight {
+  color: red;
 }
 </style>
