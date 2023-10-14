@@ -76,7 +76,7 @@ const newClient = async (hostname) => {
 }
 
 class V2Client {
-  constructor (privateKey, hostname) {
+  constructor(privateKey, hostname) {
     const parsedKey = typeof privateKey === 'string' ? JSON.parse(privateKey) : privateKey
     this.pub = pubKey(parsedKey)
     this.pk = KEYUTIL.getKey(parsedKey)
@@ -86,34 +86,35 @@ class V2Client {
     this.accountID = null
   }
 
-  async newOrder (names) {
+  async newOrder(names) {
     if (this.directory === null) {
       await this.fetchDirectory()
     }
     return this.post(this.directory['newOrder'], {
-      identifiers: names.map(v => ({
-        type: 'dns', value: v
+      identifiers: names.map((v) => ({
+        type: 'dns',
+        value: v
       }))
     })
   }
 
-  async revokeCertificate (certDERAsHex) {
+  async revokeCertificate(certDERAsHex) {
     return this.post(this.directory['revokeCert'], {
       certificate: hextob64u(certDERAsHex)
     })
   }
 
-  async deactivateAuthz (authzURL) {
+  async deactivateAuthz(authzURL) {
     return this.post(authzURL, {
       status: 'deactivated'
     })
   }
 
-  async respondChallenge (challURL) {
+  async respondChallenge(challURL) {
     return this.post(challURL, {})
   }
 
-  async pollChallenge (challURL) {
+  async pollChallenge(challURL) {
     for (let poll = 0; poll < 100; poll++) {
       const chall = await this.postAsGet(challURL)
       if (!chall || !chall.data || !chall.data.status) {
@@ -133,7 +134,7 @@ class V2Client {
     throw new Error('Challenge never reached acceptable state')
   }
 
-  async fetchAccount (registerNew = false) {
+  async fetchAccount(registerNew = false) {
     if (this.directory === null) {
       await this.fetchDirectory()
     }
@@ -156,12 +157,12 @@ class V2Client {
     }
   }
 
-  async fetchDirectory () {
+  async fetchDirectory() {
     const result = await axios.get(`https://${this.hostname}/directory`)
     this.directory = result.data
   }
 
-  async post (url, payload) {
+  async post(url, payload) {
     if (this.directory === null) {
       await this.fetchDirectory()
     }
@@ -184,7 +185,7 @@ class V2Client {
     return result
   }
 
-  async sign (url, keyID, payload) {
+  async sign(url, keyID, payload) {
     const nonce = await this.nonce()
     const alg = keyAlg(this.pub)
     let header = {
@@ -206,7 +207,7 @@ class V2Client {
     }
   }
 
-  async nonce () {
+  async nonce() {
     if (this.nonces.length === 0) {
       const result = await axios.head(this.directory['newNonce'])
       this.nonces.push(result.headers['replay-nonce'])
@@ -214,20 +215,17 @@ class V2Client {
     return this.nonces.pop()
   }
 
-  async postAsGet (url) {
+  async postAsGet(url) {
     return this.post(url, '')
   }
 
-  keyAuthz (token) {
+  keyAuthz(token) {
     return keyAuth(this.pub, token)
   }
 
-  dnsKeyAuthz (token) {
+  dnsKeyAuthz(token) {
     return hextob64u(KJUR.crypto.Util.sha256(this.keyAuthz(token)))
   }
 }
 
-export {
-  getClient,
-  newClient
-}
+export { getClient, newClient }

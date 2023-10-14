@@ -2,33 +2,38 @@
   <div class="cert-search">
     <h2>cert-search</h2>
 
-    <form class="search-form" @submit="navigateSearch()" @submit.prevent=";">
-      <select v-model="searchMode" @change="query = null; $refs.search.focus()">
+    <form class="search-form" @submit="navigateSearch()" @submit.prevent="">
+      <select
+        v-model="searchMode"
+        @change="
+          query = null
+          $refs.search.focus()
+        "
+      >
         <option value="domain">Search by domain</option>
         <option value="sql">Search by raw SQL</option>
       </select>
-      <input ref="search" type="search" :placeholder="searchPlaceholder" v-model="query">
+      <input ref="search" type="search" :placeholder="searchPlaceholder" v-model="query" />
       <select v-model="dateIntervalHours" v-if="searchMode != 'sql'">
-        <option value=168>in the last 7 days</option>
-        <option value=744>in the last 31 days</option>
-        <option value=2160>in the last 91 days</option>
+        <option value="168">in the last 7 days</option>
+        <option value="744">in the last 31 days</option>
+        <option value="2160">in the last 91 days</option>
       </select>
-      <input type="submit" :disabled="loading" value="Search"/>
+      <input type="submit" :disabled="loading" value="Search" />
     </form>
 
     <p v-if="loading">Searching ...</p>
     <div v-else-if="error" class="error">
       {{ error }}
     </div>
-    <p v-else-if="haveResults">
-      Found {{ sortedResults.length }} certificates issued.
-    </p>
+    <p v-else-if="haveResults">Found {{ sortedResults.length }} certificates issued.</p>
 
     <div v-if="haveResults && searchedMode === 'domain'">
       <div class="rate-limit-title">
         <h4>Rate Limit Status</h4>
-        <a class="fake-link" style="align-self: center;" @click="useLocalTZ = !useLocalTZ">
-          Switch to <span v-if="useLocalTZ">UTC</span><span v-else>local</span> dates</a>
+        <a class="fake-link" style="align-self: center" @click="useLocalTZ = !useLocalTZ">
+          Switch to <span v-if="useLocalTZ">UTC</span><span v-else>local</span> dates</a
+        >
       </div>
       <table class="results">
         <tr>
@@ -37,54 +42,77 @@
         </tr>
         <tr>
           <td>
-            <a href="https://letsencrypt.org/docs/rate-limits/#certificates-per-registered-domain"
-            target="_blank" rel="noopener noreferrer">Certificates per Registered Domain</a>
+            <a
+              href="https://letsencrypt.org/docs/rate-limits/#certificates-per-registered-domain"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Certificates per Registered Domain</a
+            >
           </td>
           <td>
             The Registered Domain ({{ registeredDomain }}) has used
-            <span :class="{'bad': response.totalWithinWeek >= CERTS_PER_REG_DOMAIN_PER_WEEK}">
+            <span :class="{ bad: response.totalWithinWeek >= CERTS_PER_REG_DOMAIN_PER_WEEK }">
               {{ response.totalWithinWeek }} of {{ CERTS_PER_REG_DOMAIN_PER_WEEK }}
-            </span> weekly certificates.
-            <p class="next-issue-date" v-if="response.totalWithinWeek >= CERTS_PER_REG_DOMAIN_PER_WEEK">
+            </span>
+            weekly certificates.
+            <p
+              class="next-issue-date"
+              v-if="response.totalWithinWeek >= CERTS_PER_REG_DOMAIN_PER_WEEK"
+            >
               The next non-renewal certificate for {{ registeredDomain }} will be issuable again on
               <abbr :title="formatDateTitle(nextIssuableDate)">
                 {{ formatDate(nextIssuableDate) }}
               </abbr>
             </p>
             <p>
-              <small>Due to
-                <a href="https://community.letsencrypt.org/t/rate-limits-fixing-certs-per-name-rate-limit-order-of-operations-gotcha/88189"
-                target="_blank" rel="noopener noreferrer">changes in how Let's Encrypt applies the renewal exemption</a>, this
-                calculation is no longer accurate (overestimating how close a domain is to this rate limit) and is unlikely to be fixed.
+              <small
+                >Due to
+                <a
+                  href="https://community.letsencrypt.org/t/rate-limits-fixing-certs-per-name-rate-limit-order-of-operations-gotcha/88189"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >changes in how Let's Encrypt applies the renewal exemption</a
+                >, this calculation is no longer accurate (overestimating how close a domain is to
+                this rate limit) and is unlikely to be fixed.
               </small>
             </p>
           </td>
         </tr>
         <tr>
           <td>
-            <a href="https://letsencrypt.org/docs/rate-limits/#duplicate-certificate"
-            target="_blank" rel="noopener noreferrer">Duplicate Certificates</a>
+            <a
+              href="https://letsencrypt.org/docs/rate-limits/#duplicate-certificate"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Duplicate Certificates</a
+            >
           </td>
           <td>
             <table class="duplicate-certs">
               <template v-for="(v, k) in response.groupByNames" v-bind:key="k">
-              <tr v-if="v.length >= 1">
-                <td width="50%"><div class="long-names">{{ k }}</div></td>
-                <td width="50%">
-                  <span :class="{'bad': v.length >= 5}">{{ v.length }} of 5</span> weekly certificates.
-                  <div class="next-issue-date" v-if="v.length >= 5">The next time this certificate can be issued is
-                    <abbr :title="formatDateTitle(addWeek(response.firstCertByName[k].not_before))">
-                      {{ formatDate(addWeek(response.firstCertByName[k].not_before)) }}
-                    </abbr>
-                  </div>
-                </td>
-              </tr>
+                <tr v-if="v.length >= 1">
+                  <td width="50%">
+                    <div class="long-names">{{ k }}</div>
+                  </td>
+                  <td width="50%">
+                    <span :class="{ bad: v.length >= 5 }">{{ v.length }} of 5</span> weekly
+                    certificates.
+                    <div class="next-issue-date" v-if="v.length >= 5">
+                      The next time this certificate can be issued is
+                      <abbr
+                        :title="formatDateTitle(addWeek(response.firstCertByName[k].not_before))"
+                      >
+                        {{ formatDate(addWeek(response.firstCertByName[k].not_before)) }}
+                      </abbr>
+                    </div>
+                  </td>
+                </tr>
               </template>
             </table>
           </td>
         </tr>
         <tr>
-          <td colspan="2" style="padding: 1rem 0 0 0;">
+          <td colspan="2" style="padding: 1rem 0 0 0">
             <a class="fake-link" @click="copySummary">Copy rate limit summary to clipboard</a>.
           </td>
         </tr>
@@ -99,33 +127,65 @@
         <th colspan="2">Domain List</th>
       </tr>
       <template v-for="result in sortedResults" :key="result.crtsh_id + '-entry'">
-        <tr class="cert-row" :id="result.serial" :class="{'within-week': result.is_within_week}">
+        <tr class="cert-row" :id="result.serial" :class="{ 'within-week': result.is_within_week }">
           <td width="20%">
-            <a class="serial" target="_blank" rel="noopener noreferrer nofollow" :href="'https://crt.sh/?id=' + result.crtsh_id">{{ result.serial.slice(-12) }}</a>
+            <a
+              class="serial"
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              :href="'https://crt.sh/?id=' + result.crtsh_id"
+              >{{ result.serial.slice(-12) }}</a
+            >
             <span class="cert-type">{{ result.cert_type }}</span>
           </td>
           <td width="30%">
-            <abbr :title="formatDateTitle(result.not_before)">{{ formatDate(result.not_before) }}</abbr> <br>
-            <span class="expiry">Expires in <abbr :title="formatDate(result.not_after)">{{ formatDateTitle(result.not_after) }}</abbr></span>
-            <div class="rate-limit-note" v-if="result.is_within_week && result.num_duplicates > 1" :class="{'bad': result.num_duplicates >= 5}">
+            <abbr :title="formatDateTitle(result.not_before)">{{
+              formatDate(result.not_before)
+            }}</abbr>
+            <br />
+            <span class="expiry"
+              >Expires in
+              <abbr :title="formatDate(result.not_after)">{{
+                formatDateTitle(result.not_after)
+              }}</abbr></span
+            >
+            <div
+              class="rate-limit-note"
+              v-if="result.is_within_week && result.num_duplicates > 1"
+              :class="{ bad: result.num_duplicates >= 5 }"
+            >
               {{ result.num_duplicates }}/5 Duplicate Certificates this week
             </div>
           </td>
           <td width="48%">
             <span class="name" v-for="name in result.all_names" v-bind:key="name">{{ name }}</span>
           </td>
-          <td class="detail-toggle" :class="{'selected': selectedCert === result.crtsh_id}" @click="selectedCert = selectedCert === result.crtsh_id ? null : result.crtsh_id">
+          <td
+            class="detail-toggle"
+            :class="{ selected: selectedCert === result.crtsh_id }"
+            @click="selectedCert = selectedCert === result.crtsh_id ? null : result.crtsh_id"
+          >
             <div>^</div>
           </td>
         </tr>
-        <tr class="cert-detail" v-bind:key="result.crtsh_id + '-detail'" v-if="selectedCert === result.crtsh_id">
+        <tr
+          class="cert-detail"
+          v-bind:key="result.crtsh_id + '-detail'"
+          v-if="selectedCert === result.crtsh_id"
+        >
           <td colspan="5">
             <table>
               <tr>
                 <td>crt.sh Link</td>
-                <td><a :href="'https://crt.sh/?id=' + result.crtsh_id" target="_blank" rel="noopener noreferrer nofollow">
-                  https://crt.sh/?id={{ result.crtsh_id }}
-                </a></td>
+                <td>
+                  <a
+                    :href="'https://crt.sh/?id=' + result.crtsh_id"
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                  >
+                    https://crt.sh/?id={{ result.crtsh_id }}
+                  </a>
+                </td>
               </tr>
               <tr>
                 <td width="30%">Certificate Serial</td>
@@ -146,7 +206,10 @@
               <tr>
                 <td>DNS Names</td>
                 <td>
-                  <div v-for="altName in result.cert.getExtSubjectAltName2()" v-bind:key="altName[1]">
+                  <div
+                    v-for="altName in result.cert.getExtSubjectAltName2()"
+                    v-bind:key="altName[1]"
+                  >
                     {{ altName[1] }}
                   </div>
                 </td>
@@ -175,8 +238,9 @@
                 <td>Certificate PEM</td>
                 <td>
                   <textarea readonly v-model="result.pem"></textarea>
-                  <p v-if="result.cert_type === 'Pre-Certificate'">Please keep in mind, this PEM is a pre-certificate
-                    and can't be used to serve traffic or perform revocations.
+                  <p v-if="result.cert_type === 'Pre-Certificate'">
+                    Please keep in mind, this PEM is a pre-certificate and can't be used to serve
+                    traffic or perform revocations.
                   </p>
                 </td>
               </tr>
@@ -272,7 +336,7 @@ const doQuery = async (query, registeredDomain) => {
       const entry = {
         crtsh_id: response.data.results[i].crtsh_id,
         cert,
-        all_names: cert.getExtSubjectAltName2().map(v => v[1]),
+        all_names: cert.getExtSubjectAltName2().map((v) => v[1]),
         not_before: zulutodate(cert.getNotBefore()),
         not_after: zulutodate(cert.getNotAfter()),
         cert_type: isPrecert ? 'Pre-Certificate' : 'Certificate',
@@ -323,8 +387,11 @@ const doQuery = async (query, registeredDomain) => {
       final[i].num_duplicates = groupByNames[namesKey].length
     }
 
-    if (final[i].is_within_week &&
-      (typeof firstCertByName[namesKey] === 'undefined' || firstCertByName[namesKey].not_before > final[i].not_before)) {
+    if (
+      final[i].is_within_week &&
+      (typeof firstCertByName[namesKey] === 'undefined' ||
+        firstCertByName[namesKey].not_before > final[i].not_before)
+    ) {
       firstCertByName[namesKey] = final[i]
     }
   }
@@ -354,7 +421,10 @@ export default {
   },
   methods: {
     navigateSearch: function () {
-      this.$router.push({ name: 'cert-search', query: { m: this.searchMode, q: this.query, d: this.dateIntervalHours } })
+      this.$router.push({
+        name: 'cert-search',
+        query: { m: this.searchMode, q: this.query, d: this.dateIntervalHours }
+      })
       this.reload()
     },
     search: async function () {
@@ -375,7 +445,9 @@ export default {
             queryFunc = createDomainQuery
             const parsed = psl.parse(this.query.trim())
             if (!parsed.listed || parsed.domain === null) {
-              window.alert(`${parsed.input} does not have a Public Suffix or is a Public Suffix itself.`)
+              window.alert(
+                `${parsed.input} does not have a Public Suffix or is a Public Suffix itself.`
+              )
               query = null
             } else {
               this.psl = parsed
@@ -388,7 +460,10 @@ export default {
             queryFunc = () => this.query
             break
         }
-        this.response = await doQuery(queryFunc(query, this.dateIntervalHours), this.registeredDomain)
+        this.response = await doQuery(
+          queryFunc(query, this.dateIntervalHours),
+          this.registeredDomain
+        )
         this.searchedMode = this.searchMode
       } catch (e) {
         this.error = e && e.response && e.response.data ? e.response.data : e
@@ -426,7 +501,9 @@ export default {
     copySummary: function () {
       let regSummary = `OK (${this.response.totalWithinWeek} / ${CERTS_PER_REG_DOMAIN_PER_WEEK} this week.)`
       if (this.response.totalWithinWeek >= CERTS_PER_REG_DOMAIN_PER_WEEK) {
-        regSummary = `Limit exceeded (${this.response.totalWithinWeek}/${CERTS_PER_REG_DOMAIN_PER_WEEK} this week). Next certificate issuable at \
+        regSummary = `Limit exceeded (${
+          this.response.totalWithinWeek
+        }/${CERTS_PER_REG_DOMAIN_PER_WEEK} this week). Next certificate issuable at \
 ${this.formatDate(this.nextIssuableDate)}.`
       }
       let summary = `\
@@ -462,8 +539,7 @@ ${this.formatDate(this.addWeek(this.response.firstCertByName[names].not_before))
       return this.response.results
     },
     haveResults: function () {
-      return !this.loading && this.response &&
-      typeof this.response.totalWithinWeek !== 'undefined'
+      return !this.loading && this.response && typeof this.response.totalWithinWeek !== 'undefined'
     },
     searchPlaceholder: function () {
       switch (this.searchMode) {
@@ -473,7 +549,7 @@ ${this.formatDate(this.addWeek(this.response.firstCertByName[names].not_before))
           return `e.g. select c.id as crtsh_id, c.CERTIFICATE as der from certificate \
 c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
         default:
-          throw new Error("Invalid search mode")
+          throw new Error('Invalid search mode')
       }
     },
     registeredDomain: function () {
@@ -501,7 +577,7 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
     this.reload()
   },
   watch: {
-    '$route': function () {
+    $route: function () {
       this.reload()
     }
   }
@@ -516,7 +592,8 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
     background: #2c3c69;
     color: white;
   }
-  th, td {
+  th,
+  td {
     padding: 0.5rem 1rem;
   }
   tr:nth-child(odd):not(.cert-detail) {
@@ -558,10 +635,11 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
     text-transform: uppercase;
     font-size: 0.9rem;
     &::before {
-      content: "...";
+      content: '...';
     }
   }
-  .expiry, .rate-limit-note {
+  .expiry,
+  .rate-limit-note {
     font-size: 0.8rem;
     &.bad {
       color: red;
@@ -575,7 +653,8 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
   input[type='search'] {
     flex-grow: 1;
   }
-  input, select {
+  input,
+  select {
     padding: 0.25rem;
   }
 }

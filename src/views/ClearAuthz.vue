@@ -2,46 +2,72 @@
   <div class="clear-authz">
     <h2>clear-authz</h2>
     <p>This tool can be helpful if you are faced with the following error message:</p>
-    <blockquote>urn:acme:error:rateLimited :: There were too many requests of a given type :: Error creating new authz :: too many currently pending authorizations.</blockquote>
+    <blockquote>
+      urn:acme:error:rateLimited :: There were too many requests of a given type :: Error creating
+      new authz :: too many currently pending authorizations.
+    </blockquote>
     <p>
-      This usually occurs when you have created a lot of certificate orders that were left unfilfilled. The usual cause of this
-      is a malfunctioning ACME client.
+      This usually occurs when you have created a lot of certificate orders that were left
+      unfilfilled. The usual cause of this is a malfunctioning ACME client.
     </p>
     <p>
-      This tool can help by scanning your ACME client logs (e.g. <code>/var/log/letsencrypt/*</code>) for pending authorizations
-      and then intentionally failing them, in order to reduce your pending authorization count.
+      This tool can help by scanning your ACME client logs (e.g.
+      <code>/var/log/letsencrypt/*</code>) for pending authorizations and then intentionally failing
+      them, in order to reduce your pending authorization count.
     </p>
-    <p>This tool is compatible only with ACME v2 clients (but only currently with RSA keys, as with Certbot).</p>
+    <p>
+      This tool is compatible only with ACME v2 clients (but only currently with RSA keys, as with
+      Certbot).
+    </p>
     <h3>Usage</h3>
     <p>You will need to be able to run commands on your server via SSH.</p>
     <!-- Prompt the user to upload their logs -->
-    <div :class="{'task-complete': logLines !== null}">
+    <div :class="{ 'task-complete': logLines !== null }">
       <h4>1. Gather your logs</h4>
-      <p>Find all of the authz URLs in your ACME client's logs. For Certbot, these are located in
-        <code>{{ logsDir }}</code> .</p>
-      <p>To do this, SSH into your server as root and upload your authz URLs (they are not sensitive &amp; will be deleted after 10 minutes):</p>
-      <code class="ssh">grep -Ri "/acme/authz" {{ logsDir }}/* | curl -m60 --data-binary @- https://letsdebug.net/_/{{ token }}</code>
+      <p>
+        Find all of the authz URLs in your ACME client's logs. For Certbot, these are located in
+        <code>{{ logsDir }}</code> .
+      </p>
+      <p>
+        To do this, SSH into your server as root and upload your authz URLs (they are not sensitive
+        &amp; will be deleted after 10 minutes):
+      </p>
+      <code class="ssh"
+        >grep -Ri "/acme/authz" {{ logsDir }}/* | curl -m60 --data-binary @-
+        https://letsdebug.net/_/{{ token }}</code
+      >
     </div>
-    <div :class="{'task-complete': authzCount !== 0}">
+    <div :class="{ 'task-complete': authzCount !== 0 }">
       <h4>2. Scan your logs</h4>
       <div class="upload-options">
         <div class="upload-option">
-          <p>Continue once you've run the above <code>curl</code> command and it indicates completion.</p>
+          <p>
+            Continue once you've run the above <code>curl</code> command and it indicates
+            completion.
+          </p>
           <button @click="downloadLogs" :disabled="loading">Continue</button>
         </div>
         <div class="upload-option">
-          <p>For the paranoid, provide a single logfile manually (processed inside your browser):</p>
-          <input type="file" v-on:change="handleUpload">
+          <p>
+            For the paranoid, provide a single logfile manually (processed inside your browser):
+          </p>
+          <input type="file" v-on:change="handleUpload" />
         </div>
       </div>
     </div>
     <!-- We need the ACME account key in order to GET the authorization URLs -->
-    <div v-if="authzCount !== 0" :class="{'task-complete': accountsDone }">
+    <div v-if="authzCount !== 0" :class="{ 'task-complete': accountsDone }">
       <h4>3. Provide your ACME account key(s) in JWK format</h4>
-      <p>In order to check the authorizations (via signed POST-as-GET requests), this tool needs your ACME accounts' private keys.
+      <p>
+        In order to check the authorizations (via signed POST-as-GET requests), this tool needs your
+        ACME accounts' private keys.
       </p>
       <p>The account keys will not be sent over the network - only your browser will see them.</p>
-      <div v-for="(key, server) in accountKeys" v-bind:key="server" :class="{'hidden': accountsDone}">
+      <div
+        v-for="(key, server) in accountKeys"
+        v-bind:key="server"
+        :class="{ hidden: accountsDone }"
+      >
         <h5>Please provide the ACME account private key for {{ server }}</h5>
         <code class="ssh">
           find /etc/letsencrypt/accounts/{{ server }} -name private_key.json -exec cat {} \;
@@ -51,7 +77,10 @@
       <button :disabled="loading" @click="scanChallenges">Continue</button>
     </div>
     <!-- We have the account keys, now check the authorizations -->
-    <div v-if="authzCount !== 0" :class="{'task-complete': challengesFound === true && challenges.length > 0 }">
+    <div
+      v-if="authzCount !== 0"
+      :class="{ 'task-complete': challengesFound === true && challenges.length > 0 }"
+    >
       <h4>4. Wait for each authz to be checked ...</h4>
       <p>Please wait until we have found all of the pending authorizations.</p>
       <p>
@@ -169,7 +198,9 @@ export default {
           JSON.parse(key)
         } catch (e) {
           console.log(server, key, e)
-          window.alert(`The key for ${server} is not valid, press check that the full JSON value is present: ${e}`)
+          window.alert(
+            `The key for ${server} is not valid, press check that the full JSON value is present: ${e}`
+          )
           for (const k in this.accountKeys) {
             this.accountKeys[k] = null
           }
@@ -185,11 +216,15 @@ export default {
           const el = document.createElement('a')
           el.href = url
 
-          this.clients[el.hostname] = this.clients[el.hostname] ||
-                                      getClient(this.accountKeys[el.hostname], el.hostname)
+          this.clients[el.hostname] =
+            this.clients[el.hostname] || getClient(this.accountKeys[el.hostname], el.hostname)
 
           const resp = await this.clients[el.hostname].postAsGet(url)
-          if (resp.data && resp.data.status === 'pending' && new Date(resp.data.expires).getTime() > now) {
+          if (
+            resp.data &&
+            resp.data.status === 'pending' &&
+            new Date(resp.data.expires).getTime() > now
+          ) {
             this.challenges.push(resp.data.challenges[0].url || resp.data.challenges[0].uri)
           }
         } catch (e) {
@@ -263,7 +298,7 @@ code {
   padding: 0.5rem;
 }
 .ssh::before {
-  content: "# ";
+  content: '# ';
 }
 .upload-options {
   display: flex;

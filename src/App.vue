@@ -5,8 +5,7 @@ import { RouterLink, RouterView } from 'vue-router'
 <template>
   <div id="app">
     <div id="nav">
-      <RouterLink to="/">Home</RouterLink> |
-      <RouterLink to="/about">About</RouterLink> |
+      <RouterLink to="/">Home</RouterLink> | <RouterLink to="/about">About</RouterLink> |
       <RouterLink to="/clear-authz">clear-authz</RouterLink> |
       <RouterLink to="/cert-revoke">cert-revoke</RouterLink> |
       <RouterLink to="/cert-search">cert-search</RouterLink>
