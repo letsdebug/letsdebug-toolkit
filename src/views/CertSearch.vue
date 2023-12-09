@@ -1,5 +1,9 @@
 <template>
   <div class="cert-search">
+    <p>
+      Note: This tool currently only shows certificates issued by Let's Encrypt. Certificates from
+      other certificate authorities are filtered.
+    </p>
     <h2>cert-search</h2>
 
     <form class="search-form" @submit="navigateSearch()" @submit.prevent="">
@@ -11,7 +15,7 @@
       <select v-model="dateIntervalHours" v-if="searchMode != 'sql'">
         <option value="168">in the last 7 days</option>
         <option value="744">in the last 31 days</option>
-        <option value="2160">in the last 91 days</option>
+        <option value="2160">in the last 90 days</option>
       </select>
       <input type="submit" :disabled="loading" value="Search" />
     </form>
@@ -31,7 +35,7 @@
       </div>
       <table class="results">
         <tr>
-          <th width="20%">Rate Limit</th>
+          <th style="width: 20%">Rate Limit</th>
           <th>Status</th>
         </tr>
         <tr>
@@ -85,10 +89,10 @@
             <table class="duplicate-certs">
               <template v-for="(v, k) in response.groupByNames" v-bind:key="k">
                 <tr v-if="v.length >= 1">
-                  <td width="50%">
+                  <td style="width: 50%">
                     <div class="long-names">{{ k }}</div>
                   </td>
-                  <td width="50%">
+                  <td style="width: 50%">
                     <span :class="{ bad: v.length >= 5 }">{{ v.length }} of 5</span> weekly
                     certificates.
                     <div class="next-issue-date" v-if="v.length >= 5">
@@ -122,7 +126,7 @@
       </tr>
       <template v-for="result in sortedResults" :key="result.crtsh_id + '-entry'">
         <tr class="cert-row" :id="result.serial" :class="{ 'within-week': result.is_within_week }">
-          <td width="20%">
+          <td style="width: 20%">
             <a
               class="serial"
               target="_blank"
@@ -132,7 +136,7 @@
             >
             <span class="cert-type">{{ result.cert_type }}</span>
           </td>
-          <td width="30%">
+          <td style="width: 30%">
             <abbr :title="formatDateTitle(result.not_before)">{{
               formatDate(result.not_before)
             }}</abbr>
@@ -151,7 +155,7 @@
               {{ result.num_duplicates }}/5 Duplicate Certificates this week
             </div>
           </td>
-          <td width="48%">
+          <td style="width: 48%">
             <span class="name" v-for="name in result.all_names" v-bind:key="name">{{ name }}</span>
           </td>
           <td
@@ -182,7 +186,7 @@
                 </td>
               </tr>
               <tr>
-                <td width="30%">Certificate Serial</td>
+                <td style="width: 30%">Certificate Serial</td>
                 <td>{{ result.cert.getSerialNumberHex() }}</td>
               </tr>
               <tr>
@@ -264,31 +268,36 @@ const createDomainQuery = (domain, dateIntervalHours) => {
   if (domain === null) {
     return null
   }
-  return `WITH ci AS ( \
-    SELECT min(sub.CERTIFICATE_ID) ID, \
-           min(sub.ISSUER_CA_ID) ISSUER_CA_ID, \
-           sub.CERTIFICATE DER \
-        FROM (SELECT * \
-                  FROM certificate_and_identities cai \
-                  WHERE plainto_tsquery('${domain}') @@ identities(cai.CERTIFICATE) \
-                      AND cai.NAME_VALUE ILIKE ('%' || '${domain}' || '%') \
-                  LIMIT 10000 \
-             ) sub \
-        GROUP BY sub.CERTIFICATE \
-) \
-SELECT ci.ID crtsh_id, \
-        ci.DER der \
-    FROM ci \
-            LEFT JOIN LATERAL ( \
-                SELECT min(ctle.ENTRY_TIMESTAMP) ENTRY_TIMESTAMP \
-                    FROM ct_log_entry ctle \
-                    WHERE ctle.CERTIFICATE_ID = ci.ID \
-            ) le ON TRUE, \
-         ca \
-    WHERE ci.ISSUER_CA_ID = ca.ID \
-    AND x509_notBefore(ci.DER) >= NOW() - INTERVAL '${dateIntervalHours + 1} hours' \
-    AND ci.ISSUER_CA_ID IN (16418, 183267, 183283) \
-    ORDER BY le.ENTRY_TIMESTAMP DESC;`
+  let realInterval = Number(dateIntervalHours) + 1
+  return `
+WITH ci AS (
+    SELECT min(sub.CERTIFICATE_ID) ID,
+           min(sub.ISSUER_CA_ID) ISSUER_CA_ID,
+           sub.CERTIFICATE CERTIFICATE
+        FROM (SELECT cai.*
+                  FROM certificate_and_identities cai
+                  WHERE plainto_tsquery('certwatch', '${domain}') @@ identities(cai.CERTIFICATE)
+                  AND cai.NAME_VALUE ILIKE ('%' || '${domain}' || '%')
+                  AND coalesce(x509_notAfter(cai.CERTIFICATE), 'infinity'::timestamp) >= date_trunc('year', now() AT TIME ZONE 'UTC')
+                  AND x509_notAfter(cai.CERTIFICATE) >= now() AT TIME ZONE 'UTC'
+                  AND cai.ISSUER_CA_ID IN (16418, 183267, 183283)
+                  LIMIT 10000
+             ) sub
+        GROUP BY sub.CERTIFICATE
+)
+SELECT ci.ID crtsh_id,
+       ci.CERTIFICATE pem
+    FROM ci
+            LEFT JOIN LATERAL (
+                SELECT min(ctle.ENTRY_TIMESTAMP) ENTRY_TIMESTAMP
+                    FROM ct_log_entry ctle
+                    WHERE ctle.CERTIFICATE_ID = ci.ID
+            ) le ON TRUE,
+         ca
+    WHERE ci.ISSUER_CA_ID = ca.ID
+    AND x509_notBefore(ci.CERTIFICATE) >= now() AT TIME ZONE 'UTC' - INTERVAL '${realInterval} hours'
+    ORDER BY le.ENTRY_TIMESTAMP DESC NULLS LAST;
+    `
 }
 
 const doQuery = async (query, registeredDomain) => {
@@ -316,7 +325,7 @@ const doQuery = async (query, registeredDomain) => {
   for (let i = 0; i < response.data.results.length; i++) {
     try {
       const cert = new X509()
-      const hexBytes = rstrtohex(atob(response.data.results[i].der))
+      const hexBytes = rstrtohex(atob(response.data.results[i].pem))
       cert.readCertHex(hexBytes)
       const serial = cert.getSerialNumberHex()
       const isPrecert = cert.getExtInfo('1.3.6.1.4.1.11129.2.4.3') !== undefined
@@ -472,19 +481,6 @@ export default {
       return moment(d).fromNow()
     },
     reload: function () {
-      if (this.$route.query.q) {
-        this.query = this.$route.query.q
-      }
-      if (this.$route.query.d) {
-        try {
-          this.dateIntervalHours = parseInt(this.$route.query.d)
-        } catch (e) {
-          this.dateIntervalHours = 168
-        }
-      }
-      if (this.$route.query.m) {
-        this.searchMode = this.$route.query.m
-      }
       if (this.query) {
         this.search()
       }
@@ -561,6 +557,17 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
   },
   mounted: function () {
     this.$refs.search.focus()
+    if (this.$route.query.q) {
+      this.query = this.$route.query.q
+    }
+    if (this.$route.query.d) {
+      try {
+        this.dateIntervalHours = parseInt(this.$route.query.d)
+      } catch (e) {
+        this.dateIntervalHours = 168
+      }
+    }
+    this.reload()
   },
   created: function () {
     // For relative date strings, show hours upto 3 days, days upto 90 days
@@ -569,11 +576,6 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
     moment.relativeTimeThreshold('d', 90)
 
     this.reload()
-  },
-  watch: {
-    $route: function () {
-      this.reload()
-    }
   }
 }
 </script>
