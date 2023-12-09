@@ -1,5 +1,9 @@
 <template>
   <div class="cert-search">
+    <p>
+      Note: This tool currently only shows certificates issued by Let's Encrypt. Certificates from
+      other certificate authorities are filtered.
+    </p>
     <h2>cert-search</h2>
 
     <form class="search-form" @submit="navigateSearch()" @submit.prevent="">
@@ -264,6 +268,7 @@ const createDomainQuery = (domain, dateIntervalHours) => {
   if (domain === null) {
     return null
   }
+  let realInterval = Number(dateIntervalHours) + 1
   return `
 WITH ci AS (
     SELECT min(sub.CERTIFICATE_ID) ID,
@@ -290,9 +295,7 @@ SELECT ci.ID crtsh_id,
             ) le ON TRUE,
          ca
     WHERE ci.ISSUER_CA_ID = ca.ID
-    AND x509_notBefore(ci.CERTIFICATE) >= now() AT TIME ZONE 'UTC' - INTERVAL '${
-      dateIntervalHours + 1
-    } hours'
+    AND x509_notBefore(ci.CERTIFICATE) >= now() AT TIME ZONE 'UTC' - INTERVAL '${realInterval} hours'
     ORDER BY le.ENTRY_TIMESTAMP DESC NULLS LAST;
     `
 }
@@ -478,19 +481,6 @@ export default {
       return moment(d).fromNow()
     },
     reload: function () {
-      if (this.$route.query.q) {
-        this.query = this.$route.query.q
-      }
-      if (this.$route.query.d) {
-        try {
-          this.dateIntervalHours = parseInt(this.$route.query.d)
-        } catch (e) {
-          this.dateIntervalHours = 168
-        }
-      }
-      if (this.$route.query.m) {
-        this.searchMode = this.$route.query.m
-      }
       if (this.query) {
         this.search()
       }
@@ -567,6 +557,17 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
   },
   mounted: function () {
     this.$refs.search.focus()
+    if (this.$route.query.q) {
+      this.query = this.$route.query.q
+    }
+    if (this.$route.query.d) {
+      try {
+        this.dateIntervalHours = parseInt(this.$route.query.d)
+      } catch (e) {
+        this.dateIntervalHours = 168
+      }
+    }
+    this.reload()
   },
   created: function () {
     // For relative date strings, show hours upto 3 days, days upto 90 days
@@ -575,11 +576,6 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
     moment.relativeTimeThreshold('d', 90)
 
     this.reload()
-  },
-  watch: {
-    $route: function () {
-      this.reload()
-    }
   }
 }
 </script>
