@@ -1,8 +1,10 @@
 <template>
   <div class="cert-search">
     <p>
-      Note: This tool currently only shows certificates issued by Let's Encrypt. Certificates from
-      other certificate authorities are filtered.
+      Note: For performance reasons, this tool only shows certificates issued by Let's Encrypt.
+      Certificates from other certificate authorities are filtered. This tool always searches the
+      entire registered ("apex") domain (including all subdomains), even if only a specific
+      subdomain is entered in the search field.
     </p>
     <h2>cert-search</h2>
 
@@ -12,10 +14,12 @@
         <option value="sql">Search by raw SQL</option>
       </select>
       <input ref="search" type="search" :placeholder="searchPlaceholder" v-model="query" />
-      <select v-model="dateIntervalHours" v-if="searchMode != 'sql'">
+      <select v-model="dateIntervalHours" v-if="searchMode === 'domain'">
         <option value="168">in the last 7 days</option>
         <option value="744">in the last 31 days</option>
         <option value="2160">in the last 90 days</option>
+        <option value="4320">in the last 180 days</option>
+        <option value="8760">in the last 365 days</option>
       </select>
       <input type="submit" :disabled="loading" value="Search" />
     </form>
@@ -141,10 +145,9 @@
               formatDate(result.not_before)
             }}</abbr>
             <br />
-            <span class="expiry"
-              >Expires in
+            <span class="expiry">
               <abbr :title="formatDate(result.not_after)">{{
-                formatDateTitle(result.not_after)
+                formatDateTitleWithPrefix(result.not_after)
               }}</abbr></span
             >
             <div
@@ -174,7 +177,7 @@
           <td colspan="5">
             <table>
               <tr>
-                <td>crt.sh Link</td>
+                <td style="width: 32%">crt.sh Link</td>
                 <td>
                   <a
                     :href="'https://crt.sh/?id=' + result.crtsh_id"
@@ -186,7 +189,7 @@
                 </td>
               </tr>
               <tr>
-                <td style="width: 30%">Certificate Serial</td>
+                <td>Certificate Serial</td>
                 <td>{{ result.cert.getSerialNumberHex() }}</td>
               </tr>
               <tr>
@@ -205,20 +208,16 @@
                 <td>DNS Names</td>
                 <td>
                   <div
-                    v-for="altName in result.cert.getExtSubjectAltName2()"
-                    v-bind:key="altName[1]"
+                    v-for="altName in result.cert.getExtSubjectAltName().array"
+                    v-bind:key="altName"
                   >
-                    {{ altName[1] }}
+                    {{ Object.values(altName)[0] }}
                   </div>
                 </td>
               </tr>
               <tr>
                 <td>Signature Algorithm</td>
                 <td>{{ result.cert.getSignatureAlgorithmField() }}</td>
-              </tr>
-              <tr>
-                <td>Signature</td>
-                <td class="signature">{{ result.cert.getSignatureValueHex() }}</td>
               </tr>
               <tr>
                 <td>Issuer</td>
@@ -229,8 +228,16 @@
                 <td>{{ result.cert.getPublicKey().type }}</td>
               </tr>
               <tr>
+                <td>Public Key Fingerprint (SHA-256)</td>
+                <td>{{ getSPKIHash(result.cert) }}</td>
+              </tr>
+              <tr>
                 <td>Subject Key Identifier</td>
-                <td>{{ result.cert.getExtSubjectKeyIdentifier() }}</td>
+                <td>{{ result.cert.getExtSubjectKeyIdentifier().kid.hex }}</td>
+              </tr>
+              <tr>
+                <td>Certificate Fingerprint (SHA-256)</td>
+                <td>{{ getCertHash(result.cert) }}</td>
               </tr>
               <tr>
                 <td>Certificate PEM</td>
@@ -278,9 +285,8 @@ WITH ci AS (
                   FROM certificate_and_identities cai
                   WHERE plainto_tsquery('certwatch', '${domain}') @@ identities(cai.CERTIFICATE)
                   AND cai.NAME_VALUE ILIKE ('%' || '${domain}' || '%')
-                  AND coalesce(x509_notAfter(cai.CERTIFICATE), 'infinity'::timestamp) >= date_trunc('year', now() AT TIME ZONE 'UTC')
-                  AND x509_notAfter(cai.CERTIFICATE) >= now() AT TIME ZONE 'UTC'
-                  AND cai.ISSUER_CA_ID IN (16418, 183267, 183283)
+                  AND coalesce(x509_notBefore(cai.CERTIFICATE), 'infinity'::timestamp) >= date_trunc('year', now()  AT TIME ZONE 'UTC' - INTERVAL '${realInterval} hours')
+                  AND cai.ISSUER_CA_ID IN (183267, 183283, 183268, 183284)
                   LIMIT 10000
              ) sub
         GROUP BY sub.CERTIFICATE
@@ -296,7 +302,7 @@ SELECT ci.ID crtsh_id,
          ca
     WHERE ci.ISSUER_CA_ID = ca.ID
     AND x509_notBefore(ci.CERTIFICATE) >= now() AT TIME ZONE 'UTC' - INTERVAL '${realInterval} hours'
-    ORDER BY le.ENTRY_TIMESTAMP DESC NULLS LAST;
+    ORDER BY x509_notBefore(ci.CERTIFICATE) DESC;
     `
 }
 
@@ -480,6 +486,11 @@ export default {
     formatDateTitle: function (d) {
       return moment(d).fromNow()
     },
+    formatDateTitleWithPrefix: function (d) {
+      let date = moment(d)
+      let prefix = date.isAfter(moment()) ? 'Expires in ' : 'Expired '
+      return prefix + moment(d).fromNow()
+    },
     reload: function () {
       if (this.query) {
         this.search()
@@ -516,6 +527,12 @@ ${this.formatDate(this.addWeek(this.response.firstCertByName[names].not_before))
       copyEl.select()
       document.execCommand('copy')
       copyEl.remove()
+    },
+    getSPKIHash: function (cert) {
+      return KJUR.crypto.Util.hashHex(cert.getPublicKeyHex(), 'sha256')
+    },
+    getCertHash: function (cert) {
+      return KJUR.crypto.Util.hashHex(cert.hex, 'sha256')
     }
   },
   computed: {
@@ -567,12 +584,15 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
         this.dateIntervalHours = 168
       }
     }
+    if (this.$route.query.m) {
+      this.searchMode = this.$route.query.m
+    }
     this.reload()
   },
   created: function () {
-    // For relative date strings, show hours upto 3 days, days upto 90 days
+    // For relative date strings, show hours up to 2 days, days upto 90 days
     moment.relativeTimeThreshold('m', 60)
-    moment.relativeTimeThreshold('h', 24 * 3)
+    moment.relativeTimeThreshold('h', 24 * 2)
     moment.relativeTimeThreshold('d', 90)
 
     this.reload()

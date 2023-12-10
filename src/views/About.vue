@@ -2,7 +2,27 @@
   <div class="about">
     <h2>About</h2>
     <dl>
-      <dt>Is this safe?</dt>
+      <dt>What's this?</dt>
+      <dd>
+        <p>
+          This website includes various web-based tools to perform certificate-related debugging or
+          maintenance tasks. It has been around since 2018 and is more-or-less actively maintained.
+          This is a side project running next to
+          <a href="https://letsdebug.net/" target="_blank" rel="noopener noreferrer">Let's Debug</a
+          >.
+        </p>
+        <p>
+          Feature requests, bug reports, pull requests and similar are welcome. The source code is
+          <a
+            href="https://github.com/letsdebug/letsdebug-toolkit"
+            target="_blank"
+            rel="noopener noreferrer"
+            >here</a
+          >.
+        </p>
+      </dd>
+      <p></p>
+      <dt>There are tools requesting private keys on this page. Is this safe?</dt>
       <dd>
         <p>
           Yes. No sensitive information is ever sent to any server except directly to the Let's
@@ -11,8 +31,7 @@
         </p>
         <p>
           However, this still requires some level of trust that this website does not covertly steal
-          your ACME account private key. This is the same as for websites like ZeroSSL, or for
-          downloading projects from Github.
+          your ACME account private key.
         </p>
         <p>
           You are free to get the
@@ -34,3 +53,4 @@ dt {
   font-weight: bold;
 }
 </style>
+<script setup></script>
