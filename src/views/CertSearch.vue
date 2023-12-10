@@ -299,7 +299,7 @@ SELECT ci.ID crtsh_id,
          ca
     WHERE ci.ISSUER_CA_ID = ca.ID
     AND x509_notBefore(ci.CERTIFICATE) >= now() AT TIME ZONE 'UTC' - INTERVAL '${realInterval} hours'
-    ORDER BY le.ENTRY_TIMESTAMP DESC NULLS LAST;
+    ORDER BY x509_notBefore(ci.CERTIFICATE) DESC;
     `
 }
 
