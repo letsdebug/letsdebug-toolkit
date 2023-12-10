@@ -174,7 +174,7 @@
           <td colspan="5">
             <table>
               <tr>
-                <td>crt.sh Link</td>
+                <td style="width: 32%">crt.sh Link</td>
                 <td>
                   <a
                     :href="'https://crt.sh/?id=' + result.crtsh_id"
@@ -186,7 +186,7 @@
                 </td>
               </tr>
               <tr>
-                <td style="width: 30%">Certificate Serial</td>
+                <td>Certificate Serial</td>
                 <td>{{ result.cert.getSerialNumberHex() }}</td>
               </tr>
               <tr>
@@ -217,10 +217,6 @@
                 <td>{{ result.cert.getSignatureAlgorithmField() }}</td>
               </tr>
               <tr>
-                <td>Signature</td>
-                <td class="signature">{{ result.cert.getSignatureValueHex() }}</td>
-              </tr>
-              <tr>
                 <td>Issuer</td>
                 <td>{{ result.cert.getIssuerString() }}</td>
               </tr>
@@ -229,8 +225,16 @@
                 <td>{{ result.cert.getPublicKey().type }}</td>
               </tr>
               <tr>
+                <td>Public Key Fingerprint (SHA-256)</td>
+                <td>{{ getSPKIHash(result.cert) }}</td>
+              </tr>
+              <tr>
                 <td>Subject Key Identifier</td>
                 <td>{{ result.cert.getExtSubjectKeyIdentifier().kid.hex }}</td>
+              </tr>
+              <tr>
+                <td>Certificate Fingerprint (SHA-256)</td>
+                <td>{{ getCertHash(result.cert) }}</td>
               </tr>
               <tr>
                 <td>Certificate PEM</td>
@@ -516,6 +520,12 @@ ${this.formatDate(this.addWeek(this.response.firstCertByName[names].not_before))
       copyEl.select()
       document.execCommand('copy')
       copyEl.remove()
+    },
+    getSPKIHash: function (cert) {
+      return KJUR.crypto.Util.hashHex(cert.getPublicKeyHex(), 'sha256')
+    },
+    getCertHash: function (cert) {
+      return KJUR.crypto.Util.hashHex(cert.hex, 'sha256')
     }
   },
   computed: {
