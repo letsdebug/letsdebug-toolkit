@@ -205,10 +205,10 @@
                 <td>DNS Names</td>
                 <td>
                   <div
-                    v-for="altName in result.cert.getExtSubjectAltName2()"
-                    v-bind:key="altName[1]"
+                    v-for="altName in result.cert.getExtSubjectAltName().array"
+                    v-bind:key="altName"
                   >
-                    {{ altName[1] }}
+                    {{ Object.values(altName)[0] }}
                   </div>
                 </td>
               </tr>
