@@ -12,7 +12,7 @@
         <option value="sql">Search by raw SQL</option>
       </select>
       <input ref="search" type="search" :placeholder="searchPlaceholder" v-model="query" />
-      <select v-model="dateIntervalHours" v-if="searchMode != 'sql'">
+      <select v-model="dateIntervalHours" v-if="searchMode === 'domain'">
         <option value="168">in the last 7 days</option>
         <option value="744">in the last 31 days</option>
         <option value="2160">in the last 90 days</option>
@@ -230,7 +230,7 @@
               </tr>
               <tr>
                 <td>Subject Key Identifier</td>
-                <td>{{ result.cert.getExtSubjectKeyIdentifier() }}</td>
+                <td>{{ result.cert.getExtSubjectKeyIdentifier().kid.hex }}</td>
               </tr>
               <tr>
                 <td>Certificate PEM</td>
