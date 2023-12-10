@@ -567,6 +567,9 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
         this.dateIntervalHours = 168
       }
     }
+    if (this.$route.query.m) {
+      this.searchMode = this.$route.query.m
+    }
     this.reload()
   },
   created: function () {
