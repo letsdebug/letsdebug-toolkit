@@ -2,7 +2,9 @@
   <div class="cert-search">
     <p>
       Note: For performance reasons, this tool only shows certificates issued by Let's Encrypt.
-      Certificates from other certificate authorities are filtered.
+      Certificates from other certificate authorities are filtered. This tool always searches the
+      entire registered ("apex") domain (including all subdomains), even if only a specific
+      subdomain is entered in the search field.
     </p>
     <h2>cert-search</h2>
 
