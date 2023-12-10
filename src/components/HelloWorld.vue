@@ -1,15 +1,17 @@
 <template>
   <div class="hello">
-    <p>An ACME client in your browser to perform a variety of less common Let's Encrypt tasks.</p>
+    <p>
+      This website includes various web-based tools to perform certificate-related debugging or
+      maintenance tasks.
+    </p>
     <p>
       If you're looking to issue an SSL certificate, check out
-      <a href="https://zerossl.com" target="_blank" rel="noopener noreferrer">ZeroSSL</a>
-      or
-      <a href="https://gethttpsforfree.com" target="_blank" rel="noopener noreferrer"
-        >gethttpsforfree</a
+      <a href="https://letsencrypt.org/getting-started/" target="_blank" rel="noopener noreferrer"
+        >Let's Encrypt</a
       >
       instead.
     </p>
+    <p>The following tools are currently offered here:</p>
     <h2>Let's Debug</h2>
     <p>Figure out why your certificate issuance might be failing.</p>
     <a href="https://letsdebug.net/" target="_blank" rel="noopener noreferrer">Use Let's Debug</a>
