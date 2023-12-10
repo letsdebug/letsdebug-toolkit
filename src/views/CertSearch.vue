@@ -1,8 +1,8 @@
 <template>
   <div class="cert-search">
     <p>
-      Note: This tool currently only shows certificates issued by Let's Encrypt. Certificates from
-      other certificate authorities are filtered.
+      Note: For performance reasons, this tool only shows certificates issued by Let's Encrypt.
+      Certificates from other certificate authorities are filtered.
     </p>
     <h2>cert-search</h2>
 
@@ -16,6 +16,8 @@
         <option value="168">in the last 7 days</option>
         <option value="744">in the last 31 days</option>
         <option value="2160">in the last 90 days</option>
+        <option value="4320">in the last 180 days</option>
+        <option value="8760">in the last 365 days</option>
       </select>
       <input type="submit" :disabled="loading" value="Search" />
     </form>
@@ -141,10 +143,9 @@
               formatDate(result.not_before)
             }}</abbr>
             <br />
-            <span class="expiry"
-              >Expires in
+            <span class="expiry">
               <abbr :title="formatDate(result.not_after)">{{
-                formatDateTitle(result.not_after)
+                formatDateTitleWithPrefix(result.not_after)
               }}</abbr></span
             >
             <div
@@ -483,6 +484,11 @@ export default {
     formatDateTitle: function (d) {
       return moment(d).fromNow()
     },
+    formatDateTitleWithPrefix: function (d) {
+      let date = moment(d)
+      let prefix = date.isAfter(moment()) ? 'Expires in ' : 'Expired '
+      return prefix + moment(d).fromNow()
+    },
     reload: function () {
       if (this.query) {
         this.search()
@@ -582,9 +588,9 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
     this.reload()
   },
   created: function () {
-    // For relative date strings, show hours upto 3 days, days upto 90 days
+    // For relative date strings, show hours up to 2 days, days upto 90 days
     moment.relativeTimeThreshold('m', 60)
-    moment.relativeTimeThreshold('h', 24 * 3)
+    moment.relativeTimeThreshold('h', 24 * 2)
     moment.relativeTimeThreshold('d', 90)
 
     this.reload()
