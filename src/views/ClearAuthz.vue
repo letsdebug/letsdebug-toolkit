@@ -4,8 +4,7 @@
     <div class="highlight">
       <h3>Deprecated</h3>
       <p>
-        This tool is outdated and has several issues. In particular, the "upload log" feature is
-        likely to go away soon. If you have a use case for this tool, please
+        This tool is outdated and has several issues. If you have a use case for this tool, please
         <a href="https://community.letsencrypt.org/u/nummer378">contact me</a>.
       </p>
     </div>
@@ -30,11 +29,9 @@
     </p>
     <h3>Usage</h3>
     <p>
-      You will need to be able to run commands on your server via SSH. Alternatively, you can also
-      upload a logfile via your browser below. The log file is only scanned for authorization URLs,
-      the exact formatting doesn't matter.
+      You will need to upload a logfile via your browser below. The log file is only scanned for
+      authorization URLs, the exact formatting doesn't matter.
     </p>
-    <p>If you choose to upload via your browser, you don't need to run the curl command below.</p>
     <!-- Prompt the user to upload their logs -->
     <div :class="{ 'task-complete': logLines !== null }">
       <h4>1. Gather your logs</h4>
@@ -42,30 +39,12 @@
         Find all of the authz URLs in your ACME client's logs. For Certbot, these are located in
         <code>{{ logsDir }}</code> .
       </p>
-      <p>
-        To do this, SSH into your server as root and upload your authz URLs (they are not sensitive
-        &amp; will be deleted after 10 minutes):
-      </p>
-      <p class="highlight">This feature is going away soon.</p>
-      <code class="ssh"
-        >grep -Ri "/acme/authz" {{ logsDir }}/* | curl -m60 --data-binary @-
-        https://letsdebug.net/_/{{ token }}</code
-      >
     </div>
     <div :class="{ 'task-complete': authzCount !== 0 }">
       <h4>2. Scan your logs</h4>
-      <div class="upload-options">
-        <div class="upload-option">
-          <p>
-            Continue once you've run the above <code>curl</code> command and it indicates
-            completion.
-          </p>
-          <button @click="downloadLogs" :disabled="loading">Continue</button>
-        </div>
-        <div class="upload-option">
-          <p>Alternatively, provide a single logfile manually (processed inside your browser):</p>
-          <input type="file" v-on:change="handleUpload" />
-        </div>
+      <div class="upload-option">
+        <p>Provide the logfile (processed inside your browser):</p>
+        <input type="file" v-on:change="handleUpload" />
       </div>
     </div>
     <!-- We need the ACME account key in order to GET the authorization URLs -->
