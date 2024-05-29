@@ -286,7 +286,7 @@ WITH ci AS (
                   WHERE plainto_tsquery('certwatch', '${domain}') @@ identities(cai.CERTIFICATE)
                   AND cai.NAME_VALUE ILIKE ('%' || '${domain}' || '%')
                   AND coalesce(x509_notBefore(cai.CERTIFICATE), 'infinity'::timestamp) >= date_trunc('year', now()  AT TIME ZONE 'UTC' - INTERVAL '${realInterval} hours')
-                  AND cai.ISSUER_CA_ID IN (183267, 183283, 183268, 183284)
+                  AND cai.ISSUER_CA_ID IN (183267, 183283, 183268, 183284, 295810, 295819, 295814, 295815)
                   LIMIT 10000
              ) sub
         GROUP BY sub.CERTIFICATE
