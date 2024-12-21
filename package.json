@@ -10,7 +10,7 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
-    "axios": "^1.7.7",
+    "axios": "^1.7.8",
     "jsrsasign": "^11.1.0",
     "moment": "^2.30.1",
     "moment-timezone": "^0.5.46",
