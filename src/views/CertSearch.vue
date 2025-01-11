@@ -601,6 +601,8 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
 </script>
 
 <style lang="scss" scoped>
+@use "sass:color";
+
 .results {
   width: 100%;
   margin-bottom: 2rem;
@@ -619,17 +621,17 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
     background: whitesmoke;
 
     &.within-week {
-      background: mix(whitesmoke, green, 95%);
+      background: color.mix(whitesmoke, green, 95%);
     }
   }
 
   tr {
     &.within-week {
-      background: mix(whitesmoke, lightgreen, 95%);
+      background: color.mix(whitesmoke, lightgreen, 95%);
     }
 
     &.cert-detail {
-      background: mix(whitesmoke, #2c3c69, 95%);
+      background: color.mix(whitesmoke, #2c3c69, 95%);
 
       table {
         width: 100%;
@@ -728,7 +730,7 @@ c where x509_subjectKeyIdentifier(c.CERTIFICATE) = decode('deadf00d','hex')`
   font-size: 0.8rem;
   text-decoration: underline;
   cursor: pointer;
-  color: mix(whitesmoke, #2c3c69, 25%);
+  color: color.mix(whitesmoke, #2c3c69, 25%);
   user-select: none;
 }
 
