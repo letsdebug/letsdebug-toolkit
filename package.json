@@ -17,7 +17,7 @@
     "moment-timezone": "^0.6.0",
     "psl": "^1.15.0",
     "vue": "^3.5.25",
-    "vue-router": "^4.5.0"
+    "vue-router": "^5.0.4"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.15.0",
